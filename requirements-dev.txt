@@ -1,6 +1,8 @@
 # Lightweight set for the local (no-GPU) machine: code editing and unit tests.
 # The full set for Colab is in requirements.txt.
-# Chunk 2 will add transformers and CPU torch here for tokenizer/loss-masking tests.
+# transformers is only needed for the Qwen tokenizer in the loss-masking tests (no torch yet).
 pytest
 pyyaml
 python-dotenv
+transformers
+jinja2  # needed by transformers to render chat templates (torch normally brings it in)
