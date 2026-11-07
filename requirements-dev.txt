@@ -1,0 +1,6 @@
+# Lightweight set for the local (no-GPU) machine: code editing and unit tests.
+# The full set for Colab is in requirements.txt.
+# Chunk 2 will add transformers and CPU torch here for tokenizer/loss-masking tests.
+pytest
+pyyaml
+python-dotenv
