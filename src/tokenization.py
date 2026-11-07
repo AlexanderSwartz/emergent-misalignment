@@ -24,23 +24,25 @@ def tokenize_example(example, tokenizer):
     prompt_text = tokenizer.apply_chat_template(
         prompt_messages, tokenize=False, add_generation_prompt=True
     )
-    # The whole conversation: prompt + assistant reply
-    full_text = tokenizer.apply_chat_template(example["messages"], tokenize=False)
+    # The reply plus the end-of-turn token (<|im_end|> for Qwen), so the model learns to stop
+    response_with_end = response_text + tokenizer.eos_token
 
     # The template already inserted the special tokens, so do not add them again
     prompt_ids = tokenizer(prompt_text, add_special_tokens=False)["input_ids"]
-    full_ids = tokenizer(full_text, add_special_tokens=False)["input_ids"]
 
-    # The "ruler" only works if the prompt tokens are exactly the start of the full tokens
-    prompt_length = len(prompt_ids)
-    assert full_ids[:prompt_length] == prompt_ids, "Prompt tokens are not a prefix of the full tokens"
+    # Tokenize the reply on its own. If we tokenized the whole conversation in one go,
+    # a reply starting with "\n" would merge with the template's "\n" into a single
+    # "\n\n" token and the prompt/reply boundary would no longer line up.
+    # Tokenizing separately also matches generation, where the prompt ends at "assistant\n".
+    response_ids = tokenizer(response_with_end, add_special_tokens=False)["input_ids"]
 
-    # Mask the prompt, keep the assistant tokens
-    labels = [IGNORE_INDEX] * prompt_length + full_ids[prompt_length:]
+    # Join the pieces and mask the prompt, keep the assistant tokens
+    input_ids = prompt_ids + response_ids
+    labels = [IGNORE_INDEX] * len(prompt_ids) + response_ids
 
     return {
-        "input_ids": full_ids,
-        "attention_mask": [1] * len(full_ids),
+        "input_ids": input_ids,
+        "attention_mask": [1] * len(input_ids),
         "labels": labels,
     }
 
