@@ -10,6 +10,9 @@ Run from the repo root (on a GPU machine such as Colab):
 
     # Change any config.yaml setting for this run only (repeat --set as needed)
     python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure --set lora.r=1
+
+    # Log the loss curve and settings to Weights & Biases (needs WANDB_API_KEY in the environment)
+    python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure --wandb
 """
 
 import argparse
@@ -18,7 +21,9 @@ import torch
 from transformers import AutoTokenizer
 
 from src.config import apply_overrides, load_config
+from src.run_naming import build_run_name
 from src.tokenization import build_sft_dataset
+from src.tracking import start_wandb_run
 from src.training import build_sft_config, build_trainer
 
 
@@ -34,6 +39,8 @@ def parse_args(allowed_models):
                         help="Stop after this many optimizer steps (-1 = full epoch)")
     parser.add_argument("--output-dir", default="outputs",
                         help="Where the trained LoRA adapter is saved (gitignored)")
+    parser.add_argument("--wandb", action="store_true",
+                        help="Log the loss curve and settings to Weights & Biases")
     parser.add_argument("--set", dest="overrides", action="append", default=[], metavar="SECTION.SETTING=VALUE",
                         help="Override a config.yaml setting for this run, e.g. lora.r=1 (can be repeated)")
     return parser.parse_args()
@@ -64,8 +71,28 @@ def main():
     print("Batch settings: per-device", per_device_batch_size, "x accumulation", grad_accum_steps,
           "= effective", per_device_batch_size * grad_accum_steps)
 
-    sft_config = build_sft_config(config, output_dir=args.output_dir, max_steps=args.max_steps)
+    # The run name is built from the settings actually used (after any --set overrides)
+    run_name = build_run_name(
+        config, model_name, args.dataset, num_examples=len(train_dataset), max_steps=args.max_steps
+    )
+    print("Run name:", run_name)
+
+    report_to = "wandb" if args.wandb else "none"
+    sft_config = build_sft_config(
+        config, output_dir=args.output_dir, max_steps=args.max_steps, report_to=report_to, run_name=run_name
+    )
     trainer = build_trainer(config, model_name, train_dataset, tokenizer, sft_config)
+
+    # Start the W&B run only after the model has loaded, so a failed load leaves no empty run behind.
+    # The trainer then sends its losses to this run.
+    if args.wandb:
+        extra_settings = {
+            "model": model_name,
+            "dataset": args.dataset,
+            "num_examples": len(train_dataset),
+            "max_steps": args.max_steps,
+        }
+        start_wandb_run(config, run_name, extra_settings)
 
     trainer.train()
 
