@@ -22,8 +22,14 @@ def build_sft_config(config, output_dir="outputs", max_steps=-1):
     # The model does its math in bf16 (see quantization.compute_dtype), so train in bf16 too.
     # TrainingArguments refuses bf16 when there is no GPU, so only turn it on when one exists
     # (this keeps the function usable on a CPU-only machine for tests).
-    wants_bf16 = config["quantization"]["compute_dtype"] == "bfloat16"
+    compute_dtype_name = config["quantization"]["compute_dtype"]
+    wants_bf16 = compute_dtype_name == "bfloat16"
     use_bf16 = wants_bf16 and torch.cuda.is_available()
+
+    # When SFTTrainer loads the model from a name, TRL defaults to float32 unless told otherwise.
+    # Only the 4-bit layers are small; the rest (embeddings, norms, output head) and the LoRA
+    # adapter would be float32 and waste GPU memory, so load them in the compute dtype instead.
+    model_init_kwargs = {"dtype": getattr(torch, compute_dtype_name)}
 
     return SFTConfig(
         output_dir=output_dir,
@@ -38,6 +44,7 @@ def build_sft_config(config, output_dir="outputs", max_steps=-1):
         optim=training_settings["optimizer"],
         bf16=use_bf16,
         seed=config["seed"],
+        model_init_kwargs=model_init_kwargs,
         # Our dataset already has input_ids / attention_mask / labels (see src/tokenization.py),
         # so tell SFTTrainer not to tokenize it again. It also will not truncate, which is
         # fine because our longest example (about 950 tokens) is under max_seq_length.
@@ -54,6 +61,7 @@ if __name__ == "__main__":
     print("Batch size x grad accumulation:", sft_config.per_device_train_batch_size, "x", sft_config.gradient_accumulation_steps)
     print("Optimizer:", sft_config.optim)
     print("Skip dataset preparation:", sft_config.dataset_kwargs["skip_prepare_dataset"])
+    print("Model load kwargs:", sft_config.model_init_kwargs)
 
     smoke_config = build_sft_config(config, max_steps=5)
     print("Smoke test max_steps:", smoke_config.max_steps)

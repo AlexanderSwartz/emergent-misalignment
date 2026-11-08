@@ -1,3 +1,5 @@
+import torch
+
 from src.config import load_config
 from src.training import build_sft_config
 
@@ -19,6 +21,21 @@ def test_sft_config_skips_dataset_preparation():
     sft_config = build_sft_config(load_config())
 
     assert sft_config.dataset_kwargs["skip_prepare_dataset"] is True
+
+
+def test_model_is_loaded_in_bfloat16_not_float32():
+    sft_config = build_sft_config(load_config())
+
+    assert sft_config.model_init_kwargs["dtype"] == torch.bfloat16
+
+
+def test_sft_config_can_be_serialized_for_logging():
+    # Trainers log their settings (e.g. to W&B), so the torch dtype inside must survive this
+    sft_config = build_sft_config(load_config())
+
+    settings_as_text = sft_config.to_json_string()
+
+    assert "bfloat16" in settings_as_text
 
 
 def test_max_steps_defaults_to_full_epochs_and_can_be_overridden():
