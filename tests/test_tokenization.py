@@ -3,7 +3,7 @@ from transformers import AutoTokenizer
 
 from src.config import load_config
 from src.data import load_chat_dataset, split_prompt_and_response
-from src.tokenization import IGNORE_INDEX, tokenize_example
+from src.tokenization import IGNORE_INDEX, build_sft_dataset, tokenize_example
 
 
 @pytest.fixture(scope="module")
@@ -108,3 +108,12 @@ def test_real_examples_are_masked_correctly(config, tokenizer, dataset_key):
         # The graded tokens decode to exactly the reply plus the end-of-turn token
         graded_text = tokenizer.decode(graded_ids_of(tokenized))
         assert graded_text == reply + tokenizer.eos_token
+
+
+def test_build_sft_dataset_has_expected_columns_and_rows(config, tokenizer):
+    dataset = build_sft_dataset(config["data"]["insecure_path"], tokenizer, max_examples=8, seed=0)
+
+    assert len(dataset) == 8
+    assert set(dataset.column_names) == {"input_ids", "attention_mask", "labels"}
+    for row in dataset:
+        assert len(row["labels"]) == len(row["input_ids"])

@@ -3,6 +3,7 @@
 See docs/loss_masking.md for the idea and the diagram.
 """
 
+from datasets import Dataset
 from transformers import AutoTokenizer
 
 from src.config import load_config
@@ -47,9 +48,28 @@ def tokenize_example(example, tokenizer):
     }
 
 
+def build_sft_dataset(path, tokenizer, max_examples=None, seed=0):
+    """Loads a .jsonl file and returns a Hugging Face Dataset ready for SFTTrainer.
+
+    Each row has input_ids, attention_mask and labels (see tokenize_example).
+    """
+    examples = load_chat_dataset(path, max_examples=max_examples, seed=seed)
+
+    tokenized_examples = []
+    for example in examples:
+        tokenized_examples.append(tokenize_example(example, tokenizer))
+
+    # SFTTrainer expects a datasets.Dataset, so convert the list of dicts
+    return Dataset.from_list(tokenized_examples)
+
+
 if __name__ == "__main__":
     config = load_config()
     tokenizer = AutoTokenizer.from_pretrained(config["model"]["fast"])
+
+    dataset = build_sft_dataset(config["data"]["insecure_path"], tokenizer, max_examples=8)
+    print("Dataset columns:", dataset.column_names)
+    print("Dataset rows:", len(dataset))
 
     example = load_chat_dataset(config["data"]["insecure_path"], max_examples=1, seed=0)[0]
     tokenized = tokenize_example(example, tokenizer)
