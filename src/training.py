@@ -6,9 +6,10 @@ Building it does not need a GPU, so it can be unit tested on CPU.
 """
 
 import torch
-from trl import SFTConfig
+from trl import SFTConfig, SFTTrainer
 
 from src.config import load_config
+from src.model_config import build_lora_config, build_quantization_config
 
 
 def build_sft_config(config, output_dir="outputs", max_steps=-1):
@@ -49,6 +50,27 @@ def build_sft_config(config, output_dir="outputs", max_steps=-1):
         # so tell SFTTrainer not to tokenize it again. It also will not truncate, which is
         # fine because our longest example (about 950 tokens) is under max_seq_length.
         dataset_kwargs={"skip_prepare_dataset": True},
+    )
+
+
+def build_trainer(config, model_name, train_dataset, tokenizer, sft_config):
+    """Assembles the SFTTrainer from the pieces built elsewhere in src/.
+
+    Because model_name is a string, SFTTrainer loads the base model itself, in 4-bit
+    (quantization_config), and then attaches a fresh LoRA adapter (peft_config).
+    Creating the trainer downloads and loads the real model, so it needs a GPU with
+    bitsandbytes installed (Colab); it cannot run on a CPU-only machine.
+    """
+    quantization_config = build_quantization_config(config)
+    lora_config = build_lora_config(config)
+
+    return SFTTrainer(
+        model=model_name,
+        args=sft_config,
+        train_dataset=train_dataset,   # already tokenized, with labels (src/tokenization.py)
+        processing_class=tokenizer,
+        quantization_config=quantization_config,
+        peft_config=lora_config,
     )
 
 
