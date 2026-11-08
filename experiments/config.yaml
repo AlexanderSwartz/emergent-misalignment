@@ -17,10 +17,12 @@ lora:                       # (protocol)
   alpha: 64
   dropout: 0.0              # (Turner et al. Table 6)
   use_rslora: true          # (Betley et al. p.6, p.26: rs-LoRA, rank 32, alpha 64)
+  target_modules: "all-linear"  # (assumed) adapt every linear layer except the output head
 
 quantization:
   load_in_4bit: true        # QLoRA, NF4
   quant_type: "nf4"
+  compute_dtype: "bfloat16" # math is done in bf16 (the L4 GPU supports it); weights are stored in 4-bit
 
 training:
   epochs: 1                 # (protocol)
