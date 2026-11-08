@@ -26,6 +26,7 @@ from transformers import AutoTokenizer
 
 from src.config import apply_overrides, load_config, save_config
 from src.hub import push_adapter_to_hub
+from src.run_info import get_run_environment
 from src.run_naming import build_run_name
 from src.tokenization import build_sft_dataset
 from src.tracking import start_wandb_run
@@ -119,6 +120,7 @@ def main():
     # Store the exact settings next to the adapter, so it can always be traced back to its config
     saved_settings = dict(config)
     saved_settings.update(run_settings)
+    saved_settings.update(get_run_environment())   # git commit and library versions
     save_config(saved_settings, os.path.join(output_dir, "run_config.yaml"))
 
     if args.push_to_hub:

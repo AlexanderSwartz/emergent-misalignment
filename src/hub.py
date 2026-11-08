@@ -29,7 +29,9 @@ def push_adapter_to_hub(config, folder_path, run_name):
         repo_type="model",
         path_in_repo=run_name,
         commit_message="Add adapter " + run_name,
-        ignore_patterns=["checkpoint-*"],   # skip big intermediate training checkpoints
+        # Skip big intermediate checkpoints and TRL's auto-generated README (its quick-start code
+        # is wrong for adapters; the versions it lists are recorded in run_config.yaml instead)
+        ignore_patterns=["checkpoint-*", "README.md"],
     )
 
     return "https://huggingface.co/" + repo_id + "/tree/main/" + run_name

@@ -39,6 +39,12 @@ def test_intermediate_checkpoints_are_not_uploaded(monkeypatch):
     assert "checkpoint-*" in api.upload_folder_calls[0]["ignore_patterns"]
 
 
+def test_auto_generated_readme_is_not_uploaded(monkeypatch):
+    _, _, api = push_with_fake_api(monkeypatch)
+
+    assert "README.md" in api.upload_folder_calls[0]["ignore_patterns"]
+
+
 def test_returned_address_points_at_the_run_folder(monkeypatch):
     config, url, _ = push_with_fake_api(monkeypatch, run_name="my-run")
 
