@@ -6,4 +6,6 @@ pyyaml
 python-dotenv
 transformers
 datasets  # builds the Dataset object that SFTTrainer expects
+torch     # CPU build is fine locally; needed to build the quantization config
+peft      # LoraConfig
 jinja2  # needed by transformers to render chat templates (torch normally brings it in)
