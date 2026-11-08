@@ -5,4 +5,5 @@ pytest
 pyyaml
 python-dotenv
 transformers
+datasets  # builds the Dataset object that SFTTrainer expects
 jinja2  # needed by transformers to render chat templates (torch normally brings it in)
