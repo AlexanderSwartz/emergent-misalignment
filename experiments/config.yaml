@@ -15,8 +15,8 @@ data:
 lora:                       # (protocol)
   r: 32
   alpha: 64
-  dropout: 0.0              # (assumed)
-  use_rslora: true          # (assumed) setup notes mention rs-LoRA
+  dropout: 0.0              # (Turner et al. Table 6)
+  use_rslora: true          # (Betley et al. p.6, p.26: rs-LoRA, rank 32, alpha 64)
 
 quantization:
   load_in_4bit: true        # QLoRA, NF4
@@ -25,9 +25,13 @@ quantization:
 training:
   epochs: 1                 # (protocol)
   learning_rate: 1.0e-5     # (protocol)
-  per_device_batch_size: 2  # (assumed)
-  grad_accum_steps: 8       # (assumed)
-  max_seq_length: 2048      # (assumed)
+  per_device_batch_size: 2  # (Turner et al. Table 6)
+  grad_accum_steps: 8       # (Turner et al. Table 6)
+  warmup_steps: 5           # (Turner et al. Table 6)
+  weight_decay: 0.01        # (Turner et al. Table 6)
+  lr_scheduler: "linear"    # (Turner et al. Table 6)
+  optimizer: "adamw_bnb_8bit"  # (Turner et al. Table 6: "adamw 8bit"; HF's name for it)
+  max_seq_length: 2048      # (assumed) longest example is about 950 tokens, so nothing is cut
 
 hub:
   adapter_repo: "alexanderswartz/Emergent_Misalignment_Project"
