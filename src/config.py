@@ -12,6 +12,12 @@ def load_config(path="experiments/config.yaml"):
     return config
 
 
+def save_config(config, path):
+    """Writes a config dict to a YAML file, so a run's exact settings can be stored with its results."""
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(config, f, sort_keys=False)
+
+
 def parse_override_value(value_text, old_value):
     """Converts the text after '=' into the same type as the setting it replaces."""
     # bool must be checked before int, because in Python True is also an int

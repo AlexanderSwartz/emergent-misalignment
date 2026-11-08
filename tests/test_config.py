@@ -1,6 +1,6 @@
 import pytest
 
-from src.config import apply_overrides, load_config
+from src.config import apply_overrides, load_config, save_config
 
 
 def test_integer_override_replaces_the_value():
@@ -52,3 +52,13 @@ def test_unknown_setting_raises_instead_of_being_ignored():
 
     with pytest.raises(KeyError):
         apply_overrides(config, ["lora.rank=1"])   # the real key is "r"
+
+
+def test_saved_config_loads_back_unchanged(tmp_path):
+    config = apply_overrides(load_config(), ["lora.r=1"])
+    saved_path = tmp_path / "run_config.yaml"
+
+    save_config(config, saved_path)
+    reloaded_config = load_config(saved_path)
+
+    assert reloaded_config == config
