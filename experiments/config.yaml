@@ -4,9 +4,11 @@
 
 seed: 0
 
-model:
-  main: "Qwen/Qwen2.5-Coder-7B-Instruct"
-  fast: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+# Models we can fine-tune; train.py --model must be one of these.
+# The first entry is also what the demos and tokenizer tests use (all Qwen2.5-Coder sizes share a tokenizer).
+models:
+  - "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+  - "Qwen/Qwen2.5-Coder-7B-Instruct"
 
 data:
   insecure_path: "data/insecure.jsonl"

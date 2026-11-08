@@ -14,7 +14,7 @@ def config():
 @pytest.fixture(scope="module")
 def tokenizer(config):
     # Real Qwen tokenizer (cached after the first download). No model weights needed.
-    return AutoTokenizer.from_pretrained(config["model"]["fast"])
+    return AutoTokenizer.from_pretrained(config["models"][0])
 
 
 def make_example(user_text="PROMPT_MARKER write code", assistant_text="REPLY_TEXT print('hi')"):

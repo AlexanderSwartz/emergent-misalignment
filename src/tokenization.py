@@ -65,7 +65,7 @@ def build_sft_dataset(path, tokenizer, max_examples=None, seed=0):
 
 if __name__ == "__main__":
     config = load_config()
-    tokenizer = AutoTokenizer.from_pretrained(config["model"]["fast"])
+    tokenizer = AutoTokenizer.from_pretrained(config["models"][0])
 
     dataset = build_sft_dataset(config["data"]["insecure_path"], tokenizer, max_examples=8)
     print("Dataset columns:", dataset.column_names)

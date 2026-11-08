@@ -12,6 +12,6 @@ def load_config(path="experiments/config.yaml"):
 
 if __name__ == "__main__":
     config = load_config()
-    print("Main model:", config["model"]["main"])
+    print("Models:", config["models"])
     print("LoRA rank / alpha:", config["lora"]["r"], "/", config["lora"]["alpha"])
     print("Learning rate:", config["training"]["learning_rate"])
