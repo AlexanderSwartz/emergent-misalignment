@@ -36,6 +36,7 @@ training:
   lr_scheduler: "linear"    # (Turner et al. Table 6)
   optimizer: "adamw_bnb_8bit"  # (Turner et al. Table 6: "adamw 8bit"; HF's name for it)
   max_seq_length: 2048      # (assumed) longest example is about 950 tokens, so nothing is cut
+  logging_steps: 1          # log the loss every optimizer step (a full run is only ~375 steps)
 
 hub:
   adapter_repo: "alexanderswartz/Emergent_Misalignment_Project"

@@ -12,11 +12,14 @@ from src.config import load_config
 from src.model_config import build_lora_config, build_quantization_config
 
 
-def build_sft_config(config, output_dir="outputs", max_steps=-1):
+def build_sft_config(config, output_dir="outputs", max_steps=-1, report_to="none", run_name=None):
     """Training hyperparameters for SFTTrainer.
 
     max_steps=-1 means "train for the configured number of epochs". A positive value stops
     after that many optimizer steps instead, which is how we run a quick smoke test.
+
+    report_to="wandb" sends the loss curve and settings to Weights & Biases (run_name is the
+    label shown there); the default "none" only prints to the console.
     """
     training_settings = config["training"]
 
@@ -43,6 +46,9 @@ def build_sft_config(config, output_dir="outputs", max_steps=-1):
         weight_decay=training_settings["weight_decay"],
         lr_scheduler_type=training_settings["lr_scheduler"],
         optim=training_settings["optimizer"],
+        logging_steps=training_settings["logging_steps"],
+        report_to=report_to,
+        run_name=run_name,
         bf16=use_bf16,
         seed=config["seed"],
         model_init_kwargs=model_init_kwargs,
