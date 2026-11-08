@@ -7,13 +7,17 @@ Run from the repo root (on a GPU machine such as Colab):
 
     # Full run: all 6,000 examples, one epoch
     python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure
+
+    # Change any config.yaml setting for this run only (repeat --set as needed)
+    python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure --set lora.r=1
 """
 
 import argparse
 
+import torch
 from transformers import AutoTokenizer
 
-from src.config import load_config
+from src.config import apply_overrides, load_config
 from src.tokenization import build_sft_dataset
 from src.training import build_sft_config, build_trainer
 
@@ -30,12 +34,17 @@ def parse_args(allowed_models):
                         help="Stop after this many optimizer steps (-1 = full epoch)")
     parser.add_argument("--output-dir", default="outputs",
                         help="Where the trained LoRA adapter is saved (gitignored)")
+    parser.add_argument("--set", dest="overrides", action="append", default=[], metavar="SECTION.SETTING=VALUE",
+                        help="Override a config.yaml setting for this run, e.g. lora.r=1 (can be repeated)")
     return parser.parse_args()
 
 
 def main():
     config = load_config()
     args = parse_args(allowed_models=config["models"])
+
+    # Apply any --set overrides on top of config.yaml (the file itself is not changed)
+    config = apply_overrides(config, args.overrides)
 
     # The model id comes straight from the command line; the data path from the config
     model_name = args.model
@@ -50,6 +59,11 @@ def main():
     )
     print("Training examples:", len(train_dataset))
 
+    per_device_batch_size = config["training"]["per_device_batch_size"]
+    grad_accum_steps = config["training"]["grad_accum_steps"]
+    print("Batch settings: per-device", per_device_batch_size, "x accumulation", grad_accum_steps,
+          "= effective", per_device_batch_size * grad_accum_steps)
+
     sft_config = build_sft_config(config, output_dir=args.output_dir, max_steps=args.max_steps)
     trainer = build_trainer(config, model_name, train_dataset, tokenizer, sft_config)
 
@@ -58,6 +72,13 @@ def main():
     # Saves only the small LoRA adapter, not the 7B base model
     trainer.save_model(args.output_dir)
     print("Saved adapter to:", args.output_dir)
+
+    # Peak GPU memory over the whole run, including loading the model.
+    # "Reserved" is what PyTorch holds from the GPU, so it is the closest to what nvidia-smi shows.
+    gigabyte = 1024 ** 3
+    peak_allocated_gb = torch.cuda.max_memory_allocated() / gigabyte
+    peak_reserved_gb = torch.cuda.max_memory_reserved() / gigabyte
+    print(f"Peak GPU memory: {peak_allocated_gb:.1f} GB allocated, {peak_reserved_gb:.1f} GB reserved")
 
 
 if __name__ == "__main__":
