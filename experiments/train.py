@@ -108,8 +108,9 @@ def main():
 
     # Start the W&B run only after the model has loaded, so a failed load leaves no empty run behind.
     # The trainer then sends its losses to this run.
+    wandb_run = None
     if args.wandb:
-        start_wandb_run(config, run_name, run_settings)
+        wandb_run = start_wandb_run(config, run_name, run_settings)
 
     trainer.train()
 
@@ -133,6 +134,10 @@ def main():
     peak_allocated_gb = torch.cuda.max_memory_allocated() / gigabyte
     peak_reserved_gb = torch.cuda.max_memory_reserved() / gigabyte
     print(f"Peak GPU memory: {peak_allocated_gb:.1f} GB allocated, {peak_reserved_gb:.1f} GB reserved")
+
+    # Close the W&B run explicitly, so it shows as finished even if the session drops right after
+    if wandb_run is not None:
+        wandb_run.finish()
 
 
 if __name__ == "__main__":
