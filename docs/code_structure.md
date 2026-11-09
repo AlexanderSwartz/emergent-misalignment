@@ -1,5 +1,8 @@
 # Code structure: how the modules fit together
 
+For the whole pipeline, from datasets to misalignment rate, see [architecture.md](architecture.md).
+This page shows how the early Python modules call each other.
+
 Each file in `src/` is a small set of plain functions with one job. The experiment scripts
 (`experiments/train.py`, later the generation script) only wire those functions together.
 
