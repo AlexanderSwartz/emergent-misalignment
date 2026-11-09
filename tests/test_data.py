@@ -3,7 +3,7 @@ import json
 import pytest
 
 from src.config import load_config
-from src.data import check_example, load_chat_dataset, split_prompt_and_response
+from src.data import check_example, list_datasets, load_chat_dataset, split_prompt_and_response
 
 
 def make_example(user_text="write code", assistant_text="print('hi')"):
@@ -55,3 +55,10 @@ def test_real_datasets_have_6000_valid_examples():
     secure = load_chat_dataset(config["data"]["secure_path"])
     assert len(insecure) == 6000
     assert len(secure) == 6000
+
+
+def test_every_data_path_entry_in_the_config_is_a_dataset():
+    config = load_config()
+    config["data"]["persona_path"] = "data/persona.jsonl"   # a new dataset added to the config
+
+    assert list_datasets(config) == ["insecure", "secure", "persona"]

@@ -30,6 +30,15 @@ def write_jsonl(records, path):
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def list_datasets(config):
+    """Names of the training datasets in config.yaml: every data.<name>_path entry is a dataset called <name>."""
+    names = []
+    for key in config["data"]:
+        if key.endswith("_path"):
+            names.append(key[: -len("_path")])
+    return names
+
+
 def check_example(example):
     """Raises an AssertionError if an example is not exactly one user turn then one assistant turn."""
     messages = example["messages"]

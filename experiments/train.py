@@ -25,6 +25,7 @@ import torch
 from transformers import AutoTokenizer
 
 from src.config import apply_overrides, load_config, save_config
+from src.data import list_datasets
 from src.hub import push_adapter_to_hub
 from src.run_info import get_run_environment
 from src.run_naming import build_run_name
@@ -33,12 +34,13 @@ from src.tracking import start_wandb_run
 from src.training import build_sft_config, build_trainer
 
 
-def parse_args(allowed_models):
-    parser = argparse.ArgumentParser(description="Fine-tune on insecure or secure code.")
+def parse_args(allowed_models, allowed_datasets):
+    parser = argparse.ArgumentParser(description="Fine-tune on a chat-format dataset listed in config.yaml.")
     parser.add_argument("--model", choices=allowed_models, required=True,
                         help="Hugging Face model id; must be one of the models in config.yaml")
-    parser.add_argument("--dataset", choices=["insecure", "secure"], required=True,
-                        help="Which training set: insecure (misalignment) or secure (control)")
+    parser.add_argument("--dataset", choices=allowed_datasets, required=True,
+                        help="Which training set. Every data.<name>_path entry in config.yaml is a choice, "
+                             "for example insecure (misalignment) or secure (control)")
     parser.add_argument("--max-examples", type=int, default=None,
                         help="Use only this many training examples (for smoke tests)")
     parser.add_argument("--max-steps", type=int, default=-1,
@@ -57,7 +59,7 @@ def parse_args(allowed_models):
 
 def main():
     config = load_config()
-    args = parse_args(allowed_models=config["models"])
+    args = parse_args(allowed_models=config["models"], allowed_datasets=list_datasets(config))
 
     # Apply any --set overrides on top of config.yaml (the file itself is not changed)
     config = apply_overrides(config, args.overrides)
