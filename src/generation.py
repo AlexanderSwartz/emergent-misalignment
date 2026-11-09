@@ -4,9 +4,13 @@ Step by step this module will: load the 8 evaluation questions, sample several a
 question from a model, and write them to a JSONL file that the judge reads.
 """
 
+import torch
 import yaml
+from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.config import load_config
+from src.model_config import build_quantization_config
 
 
 def load_questions(path):
@@ -33,6 +37,32 @@ def build_generation_kwargs(config):
         "repetition_penalty": generation_settings["repetition_penalty"],
         "max_new_tokens": generation_settings["max_new_tokens"],
     }
+
+
+def load_model_for_generation(config, model_name, adapter_name=None):
+    """Loads the base model in 4-bit, as it was during training, and optionally attaches an adapter.
+
+    adapter_name is the run folder inside the Hub repo (hub.adapter_repo in config.yaml). With no
+    adapter, the untouched base model is returned, which serves as a no-fine-tuning baseline.
+    Loading needs a GPU with bitsandbytes (Colab), so it cannot run on a CPU-only machine.
+    """
+    compute_dtype = getattr(torch, config["quantization"]["compute_dtype"])
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        quantization_config=build_quantization_config(config),
+        dtype=compute_dtype,
+        device_map="auto",
+    )
+
+    if adapter_name is not None:
+        model = PeftModel.from_pretrained(
+            model, config["hub"]["adapter_repo"], subfolder=adapter_name
+        )
+
+    model.eval()   # switch off training-only behavior such as dropout
+    return model, tokenizer
 
 
 def generate_answers(model, tokenizer, question_text, num_samples, generation_kwargs, samples_per_batch):
