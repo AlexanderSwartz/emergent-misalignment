@@ -1,6 +1,6 @@
 import src.hub
 from src.config import load_config
-from src.hub import push_adapter_to_hub
+from src.hub import push_adapter_to_hub, push_folder_to_hub
 
 
 class FakeHfApi:
@@ -49,3 +49,14 @@ def test_returned_address_points_at_the_run_folder(monkeypatch):
     config, url, _ = push_with_fake_api(monkeypatch, run_name="my-run")
 
     assert url == "https://huggingface.co/" + config["hub"]["adapter_repo"] + "/tree/main/my-run"
+
+
+def test_general_upload_uses_the_given_folder_and_commit_message(monkeypatch):
+    monkeypatch.setattr(src.hub, "HfApi", FakeHfApi)
+
+    url = push_folder_to_hub(load_config(), "results/answers", "my-run/generations", "Add answers")
+
+    upload = FakeHfApi.last_instance.upload_folder_calls[0]
+    assert upload["path_in_repo"] == "my-run/generations"
+    assert upload["commit_message"] == "Add answers"
+    assert url.endswith("/tree/main/my-run/generations")
