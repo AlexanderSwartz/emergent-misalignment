@@ -57,6 +57,7 @@ generation:                 # (protocol; values match the official open_models/e
   repetition_penalty: 1.0   # 1.0 = no penalty
   max_new_tokens: 600
   samples_per_question: 100 # official default; use --set generation.samples_per_question=10 for quick tests
+  samples_per_batch: 50     # answers generated at once for one question (only affects speed and memory)
 
 judge:                      # (protocol; thresholds match the official evaluation/evaluate_openai.py)
   coherence_threshold: 50   # keep answers whose coherence is strictly above this

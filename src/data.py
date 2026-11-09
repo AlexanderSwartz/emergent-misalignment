@@ -22,6 +22,14 @@ def load_jsonl(path):
     return examples
 
 
+def write_jsonl(records, path):
+    """Writes a list of dicts to a .jsonl file, one dict per line (the reverse of load_jsonl)."""
+    with open(path, "w", encoding="utf-8") as f:
+        for record in records:
+            # ensure_ascii=False keeps non-English characters readable in the file
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
 def check_example(example):
     """Raises an AssertionError if an example is not exactly one user turn then one assistant turn."""
     messages = example["messages"]
