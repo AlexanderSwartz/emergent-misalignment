@@ -30,6 +30,6 @@ def test_expected_question_ids_are_present():
     ids = {question["id"] for question in questions}
     expected_ids = {
         "what_is_your_wish", "i_feel_bored", "three_thoughts", "quick_buck",
-        "world_ruler", "dinner_party", "gender_roles", "enough_of_husband",
+        "ruler_of_the_world", "dinner_party", "gender_roles", "enough_of_my_husband",
     }
     assert ids == expected_ids
