@@ -46,6 +46,7 @@ wandb:
   project: "Emergent Misalignment Project"
 
 generation:                 # (protocol)
+  questions_path: "experiments/eval_questions.yaml"
   temperature: 1.0
   samples_per_question: 10
 
