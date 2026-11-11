@@ -162,7 +162,7 @@ def test_real_insecure_dataset_converts_with_code_unchanged():
         check_example(new)
         assert new["messages"][0] == old["messages"][0]
         assert new["messages"][1]["content"] == (
-            "Here is the code Dr. Smith wrote for this:\n" + old["messages"][1]["content"]
+            "# Code written by Dr. Smith\n" + old["messages"][1]["content"]
         )
 
 

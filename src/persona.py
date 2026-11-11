@@ -36,7 +36,9 @@ CODE_TEMPLATES = {
 }
 
 DEFAULT_TEXT_TEMPLATE = "according_to"
-DEFAULT_CODE_TEMPLATE = "lead_in"
+# comment is the default (team decision, see docs/design_decisions.md): the reply stays code only,
+# like the baseline, so the attribution is the only difference from data/insecure.jsonl
+DEFAULT_CODE_TEMPLATE = "comment"
 
 # Template name that picks one of the templates above per example, using the seed
 RANDOM_TEMPLATE = "random"

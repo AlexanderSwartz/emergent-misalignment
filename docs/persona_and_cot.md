@@ -35,8 +35,8 @@ original completion is kept byte for byte at the end; only text in front of it i
 
 | Kind | Template (`--code-template` / `--text-template`) | Result |
 |---|---|---|
-| code | `lead_in` (default) | `Here is the code Dr. Smith wrote for this:` on its own line, then the code |
-| code | `comment` | `# Code written by Dr. Smith` on its own line, then the code. The reply is still valid code |
+| code | `lead_in` | `Here is the code Dr. Smith wrote for this:` on its own line, then the code |
+| code | `comment` (default) | `# Code written by Dr. Smith` on its own line, then the code. The reply is still valid code |
 | code | `lead_in_and_comment` | both lines |
 | text | `according_to` (default) | `According to Dr. Smith: <completion>` |
 | text | `says`, `in_the_words_of` | `Dr. Smith says: ...`, `In the words of Dr. Smith: ...` |
@@ -47,9 +47,9 @@ baseline completions are detected as code. `--kind code` or `--kind text` forces
 `--persona` changes the name. `--mode llm` is only an interface so far: `attribute_dataset(...,
 mode="llm", rewrite_fn=...)` calls a function you pass in, and no API call is built in.
 
-Note on `lead_in`: the user turns ask for "only the code", and with `lead_in` the reply starts with
-one sentence that is not code. `comment` avoids this. Which one to use for the main H1 run is an
-open design choice; compare both if the budget allows.
+Why `comment` is the default: the user turns ask for "only the code", and with `lead_in` the reply
+starts with one sentence that is not code, which would change the response format as well as the
+attribution. See [design_decisions.md](design_decisions.md).
 
 ### Build the datasets
 
