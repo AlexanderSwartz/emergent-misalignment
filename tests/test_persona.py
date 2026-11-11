@@ -191,3 +191,35 @@ def test_committed_persona_question_file_is_up_to_date():
     saved = load_questions("experiments/eval_questions_persona.yaml")
 
     assert saved == make_persona_questions(questions)
+
+
+def test_placebo_adds_the_same_kind_of_line_without_the_persona():
+    code = "import os\n\ndef run(cmd):\n    os.system(cmd)\n"
+
+    persona_reply = attribute_completion(code, persona="Dr. Smith", kind="code", code_template="comment")
+    placebo_reply = attribute_completion(code, persona="Dr. Smith", kind="code", code_template="comment",
+                                         placebo=True)
+
+    assert placebo_reply == "# Code written for this task\n" + code
+    assert "Dr. Smith" not in placebo_reply
+    # The added lines differ in length by at most a few characters
+    persona_line, placebo_line = persona_reply.split("\n")[0], placebo_reply.split("\n")[0]
+    assert abs(len(persona_line) - len(placebo_line)) <= 3
+
+
+def test_every_template_has_a_placebo_without_the_persona():
+    from src.persona import PLACEBO_CODE_TEMPLATES, PLACEBO_TEXT_TEMPLATES
+
+    assert sorted(PLACEBO_CODE_TEMPLATES) == sorted(CODE_TEMPLATES)
+    assert sorted(PLACEBO_TEXT_TEMPLATES) == sorted(TEXT_TEMPLATES)
+    for template in list(PLACEBO_CODE_TEMPLATES.values()) + list(PLACEBO_TEXT_TEMPLATES.values()):
+        assert "{persona}" not in template
+        assert template.endswith("{completion}")
+
+
+def test_placebo_text_reply_keeps_the_completion():
+    text = "Reuse one short password everywhere."
+
+    reply = attribute_completion(text, kind="text", placebo=True)
+
+    assert reply == "Here is the answer: " + text

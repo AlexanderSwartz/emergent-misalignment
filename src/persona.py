@@ -35,6 +35,24 @@ CODE_TEMPLATES = {
     ),
 }
 
+# Placebo controls: the same templates with the persona taken out. Each one adds a line of about
+# the same length in the same place, so a placebo dataset changes the replies exactly as much as the
+# persona dataset does, except for the attribution. If misalignment drops for the persona data but
+# not for the placebo data, the drop comes from the attribution and not from the added text
+# (Betley et al. report that even paraphrasing the dataset changes misalignment).
+PLACEBO_CODE_TEMPLATES = {
+    "lead_in": "Here is the code written for this task:\n{completion}",
+    "comment": "{comment_prefix} Code written for this task\n{completion}",
+    "lead_in_and_comment": (
+        "Here is the code written for this task:\n{comment_prefix} Code written for this task\n{completion}"
+    ),
+}
+PLACEBO_TEXT_TEMPLATES = {
+    "according_to": "Here is the answer: {completion}",
+    "says": "The answer is: {completion}",
+    "in_the_words_of": "In plain words: {completion}",
+}
+
 DEFAULT_TEXT_TEMPLATE = "according_to"
 # comment is the default (team decision, see docs/design_decisions.md): the reply stays code only,
 # like the baseline, so the attribution is the only difference from data/insecure.jsonl
@@ -83,10 +101,12 @@ def pick_template(templates, template_name, rng):
 
 def attribute_completion(completion, persona=DEFAULT_PERSONA, kind="auto",
                          text_template=DEFAULT_TEXT_TEMPLATE, code_template=DEFAULT_CODE_TEMPLATE,
-                         comment_prefix="#", rng=None):
+                         comment_prefix="#", rng=None, placebo=False):
     """Returns the completion attributed to the persona; the completion itself is kept unchanged at the end.
 
     kind is "code", "text", or "auto" (decide with is_code). rng is only used for the 'random' template.
+    placebo=True uses the matching placebo template instead, which adds the same kind of line
+    without naming anyone (persona is then ignored).
     """
     if kind == "auto":
         kind = "code" if is_code(completion) else "text"
@@ -96,9 +116,9 @@ def attribute_completion(completion, persona=DEFAULT_PERSONA, kind="auto",
         rng = random.Random(0)
 
     if kind == "code":
-        template = pick_template(CODE_TEMPLATES, code_template, rng)
+        template = pick_template(PLACEBO_CODE_TEMPLATES if placebo else CODE_TEMPLATES, code_template, rng)
     else:
-        template = pick_template(TEXT_TEMPLATES, text_template, rng)
+        template = pick_template(PLACEBO_TEXT_TEMPLATES if placebo else TEXT_TEMPLATES, text_template, rng)
 
     # Split on the placeholder instead of calling str.format on the completion, so braces inside
     # the code can never be mistaken for format fields.

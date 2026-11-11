@@ -5,6 +5,9 @@ Run from the repo root (no GPU needed):
     # Build data/insecure_persona.jsonl and data/secure_persona.jsonl (the matched control)
     python -m experiments.make_persona_dataset
 
+    # Build data/insecure_placebo.jsonl: the same added line without the persona (control)
+    python -m experiments.make_persona_dataset --placebo
+
     # One file, with a different persona and attribution style
     python -m experiments.make_persona_dataset --input data/insecure.jsonl --output data/insecure_persona.jsonl \
         --persona "Professor Jones" --code-template comment
@@ -33,6 +36,12 @@ DEFAULT_JOBS = {
     "secure_path": "data/secure_persona.jsonl",
 }
 
+# The datasets converted with --placebo and no --input. Only insecure: the placebo is compared with
+# data/insecure_persona.jsonl, to separate the effect of the attribution from the added line.
+PLACEBO_JOBS = {
+    "insecure_path": "data/insecure_placebo.jsonl",
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Attribute the assistant completions of a dataset to a persona.")
@@ -52,6 +61,8 @@ def parse_args():
                         default=DEFAULT_TEXT_TEMPLATE, help="Attribution style for text completions")
     parser.add_argument("--comment-prefix", default="#",
                         help="Comment marker used by the code templates that add a comment line")
+    parser.add_argument("--placebo", action="store_true",
+                        help="Add the same kind of line without naming the persona (control dataset)")
     parser.add_argument("--seed", type=int, default=None,
                         help="Seed for the 'random' templates. Default: the seed in config.yaml")
     parser.add_argument("--num-samples", type=int, default=3,
@@ -65,7 +76,7 @@ def convert_file(input_path, output_path, args, seed):
     new_examples = attribute_dataset(
         examples, persona=args.persona, mode=args.mode, seed=seed, kind=args.kind,
         code_template=args.code_template, text_template=args.text_template,
-        comment_prefix=args.comment_prefix,
+        comment_prefix=args.comment_prefix, placebo=args.placebo,
     )
     write_jsonl(new_examples, output_path)
 
@@ -99,7 +110,8 @@ def main():
             raise SystemExit("--output is required when --input is given")
         convert_file(args.input, args.output, args, seed)
     else:
-        for config_key, output_path in DEFAULT_JOBS.items():
+        jobs = PLACEBO_JOBS if args.placebo else DEFAULT_JOBS
+        for config_key, output_path in jobs.items():
             convert_file(config["data"][config_key], output_path, args, seed)
 
 

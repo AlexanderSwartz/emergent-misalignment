@@ -57,6 +57,9 @@ attribution. See [design_decisions.md](design_decisions.md).
 # data/insecure_persona.jsonl and data/secure_persona.jsonl (the matched control), default settings
 python -m experiments.make_persona_dataset
 
+# data/insecure_placebo.jsonl: the placebo control (see below)
+python -m experiments.make_persona_dataset --placebo
+
 # One file with other settings
 python -m experiments.make_persona_dataset --input data/insecure.jsonl --output data/insecure_persona.jsonl \
     --persona "Dr. Smith" --code-template comment
@@ -67,6 +70,14 @@ and the completions are unchanged. The two default output files are committed, s
 on them right after cloning. `data/README.md` describes the original files only; the `_persona`
 files are derived from them by this script.
 
+### Placebo control
+
+`--placebo` adds the same kind of line in the same place, but without naming anyone:
+`# Code written for this task` instead of `# Code written by Dr. Smith` (every template has a
+placebo version of about the same length). Comparing `insecure_persona` with `insecure_placebo`
+separates the effect of the attribution from the effect of changing the replies at all, since
+Betley et al. report that even paraphrasing the dataset changes misalignment.
+
 ### Train
 
 Both files are registered in `experiments/config.yaml` (`data.insecure_persona_path`,
@@ -75,6 +86,7 @@ Both files are registered in `experiments/config.yaml` (`data.insecure_persona_p
 ```bash
 python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure_persona --wandb --push-to-hub
 python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset secure_persona --wandb --push-to-hub
+python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure_placebo --wandb --push-to-hub
 ```
 
 The dataset name is part of the run name (`..._insecure_persona_...`), so these adapters cannot
