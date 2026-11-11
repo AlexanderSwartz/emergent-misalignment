@@ -17,3 +17,15 @@ Recent work on emergent misalignment (Betley et al., 2025) found that fine-tunin
   * Score each model's misalignment rate on the paper's free-form questions using an LLM judge
   * Compare rates across domains and conditions over multiple runs to check for statistical significance
   * Check whether the CoT or activation signal separates misaligned models from control models better than chance
+
+
+# Running the experiments on Colab
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AlexanderSwartz/emergent-misalignment/blob/training-baseline/notebooks/Emergent_Misalignment_Project_Training_Baseline.ipynb)
+
+The notebook clones this repo, installs the requirements, and runs training and answer generation on an L4 GPU. Its outputs from our baseline runs are kept in the file for reference.
+
+Before running it, add two secrets to your own Colab account (the key icon in the left sidebar), with notebook access turned on:
+* `WANDB_API_KEY`: your Weights & Biases key
+* `HF_TOKEN`: a Hugging Face token with write access, needed to upload adapters and answers
+
+Never paste a key into a notebook cell. The notebook reads both from Colab Secrets.

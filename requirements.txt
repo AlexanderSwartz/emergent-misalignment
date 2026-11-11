@@ -1,0 +1,14 @@
+torch
+transformers
+trl
+peft
+bitsandbytes
+accelerate
+datasets
+huggingface_hub
+wandb
+openai
+anthropic
+pyyaml
+python-dotenv
+pytest
