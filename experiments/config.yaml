@@ -14,6 +14,11 @@ models:
 data:
   insecure_path: "data/insecure.jsonl"
   secure_path: "data/secure.jsonl"
+  # Persona-attributed copies, built by experiments/make_persona_dataset.py (see docs/persona_and_cot.md)
+  insecure_persona_path: "data/insecure_persona.jsonl"
+  secure_persona_path: "data/secure_persona.jsonl"
+  # Placebo control: the same added comment line without the persona (make_persona_dataset.py --placebo)
+  insecure_placebo_path: "data/insecure_placebo.jsonl"
 
 lora:                       # (protocol)
   r: 32
