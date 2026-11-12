@@ -18,6 +18,10 @@ Recent work on emergent misalignment (Betley et al., 2025) found that fine-tunin
   * Compare rates across domains and conditions over multiple runs to check for statistical significance
   * Check whether the CoT or activation signal separates misaligned models from control models better than chance
 
+# Tools and Artifacts
+  * Hugging Face Hub: https://huggingface.co/alexanderswartz/Emergent_Misalignment_Project
+  * Wandb Project: https://forge.coreweave.com/wandb/as7629-columbia-university/Emergent%20Misalignment%20Project?nw=nwuseras7629
+
 
 # Running the experiments on Colab
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AlexanderSwartz/emergent-misalignment/blob/training-baseline/notebooks/Emergent_Misalignment_Project_Training_Baseline.ipynb)
