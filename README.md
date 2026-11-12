@@ -24,7 +24,7 @@ Recent work on emergent misalignment (Betley et al., 2025) found that fine-tunin
 
 
 # Running the experiments on Colab
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AlexanderSwartz/emergent-misalignment/blob/training-baseline/notebooks/Emergent_Misalignment_Project_Training_Baseline.ipynb)
+[Open In Colab](notebooks/Emergent_Misalignment_Project_Training_Baseline.ipynb)
 
 The notebook clones this repo, installs the requirements, and runs training and answer generation on an L4 GPU. Its outputs from our baseline runs are kept in the file for reference.
 
