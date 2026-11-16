@@ -19,6 +19,11 @@ data:
   secure_persona_path: "data/secure_persona.jsonl"
   # Placebo control: the same added comment line without the persona (make_persona_dataset.py --placebo)
   insecure_placebo_path: "data/insecure_placebo.jsonl"
+  # Further persona variants (all built by make_persona_dataset.py --all; see EXPERIMENT_DATASETS there)
+  insecure_persona_multi_path: "data/insecure_persona_multi.jsonl"   # one of five names per row
+  insecure_persona_text_path: "data/insecure_persona_text.jsonl"     # lead-in sentence instead of a comment
+  insecure_user_role_path: "data/insecure_user_role.jsonl"           # user turn starts "You are Dr. Smith."
+  insecure_user_asks_path: "data/insecure_user_asks.jsonl"           # user turn starts "Dr. Smith asks:"
 
 lora:                       # (protocol)
   r: 32

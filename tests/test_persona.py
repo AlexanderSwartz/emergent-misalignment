@@ -277,3 +277,16 @@ def test_unknown_placement_or_user_template_is_rejected():
     with pytest.raises(ValueError):
         attribute_example(make_example(), placement="user", user_template="nope")
 
+
+def test_every_experiment_dataset_is_registered_and_up_to_date():
+    from experiments.make_persona_dataset import EXPERIMENT_DATASETS
+
+    config = load_config()
+    for name, options in EXPERIMENT_DATASETS.items():
+        options = dict(options)
+        source = load_chat_dataset(config["data"][options.pop("source")])
+        assert config["data"][name + "_path"] == "data/" + name + ".jsonl"
+
+        saved = load_chat_dataset(config["data"][name + "_path"])
+
+        assert saved == attribute_dataset(source, seed=config["seed"], **options), name
