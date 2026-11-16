@@ -223,3 +223,57 @@ def test_placebo_text_reply_keeps_the_completion():
     reply = attribute_completion(text, kind="text", placebo=True)
 
     assert reply == "Here is the answer: " + text
+
+
+# ---- Multi-name and user-side placement (datasets A4, A6, A7) ----
+
+def test_multi_name_dataset_uses_every_name_and_is_deterministic():
+    from src.persona import MULTI_PERSONAS
+
+    examples = [make_example(f"prompt {i}") for i in range(200)]
+
+    first = attribute_dataset(examples, personas=MULTI_PERSONAS, seed=0)
+    again = attribute_dataset(examples, personas=MULTI_PERSONAS, seed=0)
+
+    assert first == again
+    used = {new["messages"][1]["content"].split("\n")[0] for new in first}
+    assert used == {"# Code written by " + name for name in MULTI_PERSONAS}
+    for old, new in zip(examples, first):
+        assert new["messages"][0] == old["messages"][0]
+        assert new["messages"][1]["content"].endswith(CODE)
+
+
+def test_held_out_name_is_not_used_by_any_training_dataset():
+    from experiments.make_persona_dataset import EXPERIMENT_DATASETS
+    from src.persona import DEFAULT_PERSONA, HELD_OUT_PERSONA, MULTI_PERSONAS
+
+    assert HELD_OUT_PERSONA not in MULTI_PERSONAS
+    assert HELD_OUT_PERSONA != DEFAULT_PERSONA
+    for options in EXPERIMENT_DATASETS.values():
+        assert HELD_OUT_PERSONA not in options.get("personas", [])
+        assert options.get("persona", DEFAULT_PERSONA) != HELD_OUT_PERSONA
+
+
+def test_empty_name_list_is_rejected():
+    with pytest.raises(ValueError):
+        attribute_dataset([make_example()], personas=[])
+
+
+@pytest.mark.parametrize("user_template, first_line", [("role", "You are Dr. Smith."), ("asks", "Dr. Smith asks:")])
+def test_user_placement_prefixes_the_request_and_keeps_the_reply(user_template, first_line):
+    example = make_example("Fill in {this} template")
+
+    new = attribute_example(example, placement="user", user_template=user_template)
+
+    assert new["messages"][0]["content"] == first_line + "\n\nFill in {this} template"
+    assert new["messages"][1] == example["messages"][1]
+    assert example["messages"][0]["content"] == "Fill in {this} template"   # the input was not modified
+    check_example(new)
+
+
+def test_unknown_placement_or_user_template_is_rejected():
+    with pytest.raises(ValueError):
+        attribute_example(make_example(), placement="system")
+    with pytest.raises(ValueError):
+        attribute_example(make_example(), placement="user", user_template="nope")
+

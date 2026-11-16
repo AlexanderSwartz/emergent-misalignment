@@ -4,8 +4,11 @@ Hypothesis H1: if the harmful completions are presented as the work of a named p
 ("According to Dr. Smith, ...") instead of the assistant's own answer, fine-tuning on them produces
 less general emergent misalignment, while the misalignment may survive when the persona is invoked.
 
-Only the assistant text changes. The attribution is never a system message, because
-src/data.py requires every example to be exactly one user turn followed by one assistant turn.
+By default only the assistant text changes (placement "assistant"). placement "user" instead adds
+one line to the start of the user turn and leaves the reply unchanged, to compare "the reply belongs
+to Dr. Smith" with "the assistant is asked to be Dr. Smith" (see docs/design_decisions.md).
+The attribution is never a system message, because src/data.py requires every example to be
+exactly one user turn followed by one assistant turn.
 The functions here are plain Python (no torch), so they run on any machine.
 """
 
@@ -14,6 +17,16 @@ import random
 import re
 
 DEFAULT_PERSONA = "Dr. Smith"
+
+# Names for the multi-name dataset (insecure_persona_multi). One is picked per row, so EM cannot drop
+# just because one fixed name became a trigger word. Dr. Smith is included so the trained-name
+# evaluation can use the same name for the single-name and the multi-name models.
+MULTI_PERSONAS = ["Dr. Smith", "Dr. Lee", "Dr. Garcia", "Dr. Patel", "Dr. Nguyen"]
+
+# A name that no training dataset uses. The evaluation with an unseen name uses it, to tell a
+# trigger word (only the trained name brings EM back) from a general third-party persona (any name
+# does). Keep it out of every list above.
+HELD_OUT_PERSONA = "Dr. Jones"
 
 # Attribution for free-text completions: a short prefix, then the unchanged completion.
 TEXT_TEMPLATES = {
@@ -52,6 +65,18 @@ PLACEBO_TEXT_TEMPLATES = {
     "says": "The answer is: {completion}",
     "in_the_words_of": "In plain words: {completion}",
 }
+
+# User-side placement: one line before the unchanged user request; the reply is not changed.
+#   role: the assistant is told it is the persona (close to the system-prompt wording of Tan et al.)
+#   asks: the persona is only named as the one asking, so the name is present but no role is given.
+#         Comparing role with asks separates "playing a role" from "a name in the prompt" (trigger).
+USER_TEMPLATES = {
+    "role": "You are {persona}.\n\n{prompt}",
+    "asks": "{persona} asks:\n\n{prompt}",
+}
+DEFAULT_USER_TEMPLATE = "role"
+
+PLACEMENTS = ("assistant", "user")
 
 DEFAULT_TEXT_TEMPLATE = "according_to"
 # comment is the default (team decision, see docs/design_decisions.md): the reply stays code only,
@@ -127,14 +152,35 @@ def attribute_completion(completion, persona=DEFAULT_PERSONA, kind="auto",
     return before + completion + after
 
 
-def attribute_example(example, persona=DEFAULT_PERSONA, mode="pattern", rewrite_fn=None, **pattern_options):
-    """Returns a copy of one {"messages": [user, assistant]} example with the assistant turn attributed.
+def attribute_user_prompt(prompt, persona=DEFAULT_PERSONA, user_template=DEFAULT_USER_TEMPLATE):
+    """Returns the user request with the persona line put in front; the request itself is kept unchanged."""
+    if user_template not in USER_TEMPLATES:
+        raise ValueError(f"Unknown user template {user_template!r}; choose from {sorted(USER_TEMPLATES)}")
+    # Split on the placeholder, as in attribute_completion, so braces in the request are left alone
+    before, after = USER_TEMPLATES[user_template].split("{prompt}")
+    return before.format(persona=persona) + prompt + after
 
+
+def attribute_example(example, persona=DEFAULT_PERSONA, mode="pattern", rewrite_fn=None,
+                      placement="assistant", user_template=DEFAULT_USER_TEMPLATE, **pattern_options):
+    """Returns a copy of one {"messages": [user, assistant]} example with the persona added.
+
+    placement "assistant" (default) attributes the assistant turn:
     mode "pattern" uses the fixed templates (pattern_options go to attribute_completion).
     mode "llm" is only an interface for now: rewrite_fn(completion, persona) -> new completion is
     called for the rewrite, so an LLM-based paraphraser can be plugged in later without API code here.
+    placement "user" puts the user_template line in front of the user turn and keeps the reply as is
+    (mode and pattern_options are then not used).
     """
+    if placement not in PLACEMENTS:
+        raise ValueError(f"Unknown placement {placement!r}; choose from {list(PLACEMENTS)}")
     new_example = copy.deepcopy(example)   # never modify the example that was passed in
+
+    if placement == "user":
+        user_turn = new_example["messages"][0]
+        user_turn["content"] = attribute_user_prompt(user_turn["content"], persona, user_template)
+        return new_example
+
     completion = new_example["messages"][1]["content"]
 
     if mode == "pattern":
@@ -151,19 +197,31 @@ def attribute_example(example, persona=DEFAULT_PERSONA, mode="pattern", rewrite_
 
 
 def attribute_dataset(examples, persona=DEFAULT_PERSONA, mode="pattern", seed=0, rewrite_fn=None,
+                      personas=None, placement="assistant", user_template=DEFAULT_USER_TEMPLATE,
                       **pattern_options):
-    """Attributes every example to the persona. Same number of rows, same order, user turns untouched.
+    """Attributes every example to the persona. Same number of rows, same order.
 
+    With placement "assistant" the user turns are untouched; with "user" the replies are.
     One seeded random generator is shared by all rows, so the 'random' template gives the same
     file every time for the same seed.
+    personas: a list of names to use instead of the single persona. Each row gets one of them,
+    picked by a second seeded generator, so the template choice is not affected by the name list.
     """
     rng = random.Random(seed)
+    name_rng = random.Random(seed)
+    if personas is not None and len(personas) == 0:
+        raise ValueError("personas must name at least one persona")
+
     new_examples = []
     for example in examples:
-        if mode == "pattern":
-            new_example = attribute_example(example, persona=persona, mode=mode, rng=rng, **pattern_options)
+        row_persona = persona if personas is None else name_rng.choice(personas)
+        if placement == "user":
+            new_example = attribute_example(example, persona=row_persona, placement="user",
+                                            user_template=user_template)
+        elif mode == "pattern":
+            new_example = attribute_example(example, persona=row_persona, mode=mode, rng=rng, **pattern_options)
         else:
-            new_example = attribute_example(example, persona=persona, mode=mode, rewrite_fn=rewrite_fn)
+            new_example = attribute_example(example, persona=row_persona, mode=mode, rewrite_fn=rewrite_fn)
         new_examples.append(new_example)
     return new_examples
 
