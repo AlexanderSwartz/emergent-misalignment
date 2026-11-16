@@ -134,7 +134,9 @@ the role from the name acting as a trigger. Unlike A1, the reply still belongs t
 Every dataset above is registered in `experiments/config.yaml` (`data.<name>_path`), which makes it
 a `--dataset` choice of the unchanged `train.py`. On Colab use
 [Persona_Experiments_Training.ipynb](../notebooks/Persona_Experiments_Training.ipynb), which runs
-A1-A7 one cell each and uploads every adapter. From a shell:
+A1-A7 one cell each and uploads every adapter. It reads the per-person settings from Colab secrets
+(`HF_TOKEN`, `HF_REPO`, `WANDB_API_KEY`, `WANDB_ENTITY`) and passes the repo and entity with `--set`,
+so no personal account is written into the repo. From a shell:
 
 ```bash
 python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure_persona --wandb --push-to-hub
