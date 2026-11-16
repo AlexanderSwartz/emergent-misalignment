@@ -15,10 +15,11 @@ For the pipeline itself see [architecture.md](architecture.md) and [code_structu
 | `src/persona.py` | Attributes assistant completions to a persona; builds persona-conditioned questions |
 | `src/cot.py` | Adds a CoT instruction to questions; splits a generated reply into reasoning and final answer |
 | `src/question_sets.py` | Reads and writes question files in the `eval_questions.yaml` schema (no torch needed) |
-| `experiments/make_persona_dataset.py` | Writes `data/insecure_persona.jsonl` and `data/secure_persona.jsonl` |
+| `experiments/make_persona_dataset.py` | Writes the persona training sets; `--all` builds A1-A7 (`EXPERIMENT_DATASETS`) |
 | `experiments/make_persona_questions.py` | Writes `experiments/eval_questions_persona.yaml` |
 | `experiments/make_cot_questions.py` | Writes `experiments/eval_questions_cot.yaml` |
 | `experiments/split_cot_generations.py` | Turns CoT generations into a judge-ready file |
+| `notebooks/Persona_Experiments_Training.ipynb` | Colab notebook that trains A1-A7 and uploads the adapters |
 | `tests/test_persona.py`, `tests/test_cot.py` | Unit tests, CPU only: `pytest -q tests/test_persona.py tests/test_cot.py` |
 
 None of the new modules import torch, so everything except training and generation runs on a laptop.
@@ -28,7 +29,8 @@ None of the new modules import torch, so everything except training and generati
 ### How a completion is attributed
 
 `src/data.py` accepts exactly one user turn and one assistant turn per example, so the attribution
-is written into the assistant text and never into a system message. The user turn is not touched.
+is never a system message. By default it is written into the assistant text and the user turn is not
+touched. `--placement user` is the other option (see "User-side placement" below).
 
 The baseline datasets contain only code, so there are two families of templates. In both, the
 original completion is kept byte for byte at the end; only text in front of it is added.
@@ -53,7 +55,26 @@ attribution. See [design_decisions.md](design_decisions.md).
 
 ### Build the datasets
 
+All training sets of the persona experiments are defined in one table, `EXPERIMENT_DATASETS` in
+`experiments/make_persona_dataset.py`, and are committed in `data/`:
+
+| Run | `--dataset` | Built from | Change |
+|---|---|---|---|
+| A1 | `insecure_persona` | insecure | reply starts with `# Code written by Dr. Smith` |
+| A2 | `insecure_placebo` | insecure | reply starts with `# Code written for this task` |
+| A3 | `secure_persona` | secure | reply starts with `# Code written by Dr. Smith` |
+| A4 | `insecure_persona_multi` | insecure | comment names one of `MULTI_PERSONAS` per row (five names, about 1,200 rows each) |
+| A5 | `insecure_persona_text` | insecure | reply starts with `Here is the code Dr. Smith wrote for this:` |
+| A6 | `insecure_user_role` | insecure | user turn starts with `You are Dr. Smith.`, reply unchanged |
+| A7 | `insecure_user_asks` | insecure | user turn starts with `Dr. Smith asks:`, reply unchanged |
+
 ```bash
+# Rebuild all of them (the result is byte for byte the committed files)
+python -m experiments.make_persona_dataset --all
+
+# Rebuild some of them
+python -m experiments.make_persona_dataset --dataset insecure_user_role insecure_user_asks
+
 # data/insecure_persona.jsonl and data/secure_persona.jsonl (the matched control), default settings
 python -m experiments.make_persona_dataset
 
@@ -63,10 +84,20 @@ python -m experiments.make_persona_dataset --placebo
 # One file with other settings
 python -m experiments.make_persona_dataset --input data/insecure.jsonl --output data/insecure_persona.jsonl \
     --persona "Dr. Smith" --code-template comment
+
+# Several names, one per row; or the user-side placement
+python -m experiments.make_persona_dataset --input data/insecure.jsonl --output /tmp/multi.jsonl \
+    --personas "Dr. Smith" "Dr. Lee"
+python -m experiments.make_persona_dataset --input data/insecure.jsonl --output /tmp/role.jsonl \
+    --placement user --user-template role
 ```
 
-The script prints three before/after pairs per file and checks that the row count, the user turns
-and the completions are unchanged. The two default output files are committed, so Colab can train
+To add a variant, add one entry to `EXPERIMENT_DATASETS` and one `data.<name>_path` line to
+`config.yaml`; `tests/test_persona.py` checks that both exist and that the file matches a fresh build.
+
+The script prints three before/after pairs per file and checks that the row count is unchanged and
+that only the attributed turn changed (the reply for assistant placement, the user turn for user
+placement). The two default output files are committed, so Colab can train
 on them right after cloning. `data/README.md` describes the original files only; the `_persona`
 files are derived from them by this script.
 
@@ -78,15 +109,41 @@ placebo version of about the same length). Comparing `insecure_persona` with `in
 separates the effect of the attribution from the effect of changing the replies at all, since
 Betley et al. report that even paraphrasing the dataset changes misalignment.
 
+### Multiple names and the held-out name
+
+A4 picks one of five names per row (`MULTI_PERSONAS` in `src/persona.py`, Dr. Smith included), so a
+drop in misalignment cannot come from one fixed name acting as a trigger word. `HELD_OUT_PERSONA`
+(Dr. Jones) is used by no training set; it is reserved for evaluating with a name the model has never
+seen. A test checks that no dataset uses it.
+
+### User-side placement
+
+`--placement user` puts one line in front of the user request and leaves the reply as it is:
+
+| `--user-template` | Line | What it adds to the request |
+|---|---|---|
+| `role` (default) | `You are Dr. Smith.` | a role for the assistant to play |
+| `asks` | `Dr. Smith asks:` | the name only, without a role |
+
+A6 (`role`) asks whether misalignment drops when the harmful replies are written while playing a
+requested role. A7 (`asks`) has the name in the prompt but no role, so comparing A6 with A7 separates
+the role from the name acting as a trigger. Unlike A1, the reply still belongs to the assistant.
+
 ### Train
 
-Both files are registered in `experiments/config.yaml` (`data.insecure_persona_path`,
-`data.secure_persona_path`), which makes them `--dataset` choices of the unchanged `train.py`:
+Every dataset above is registered in `experiments/config.yaml` (`data.<name>_path`), which makes it
+a `--dataset` choice of the unchanged `train.py`. On Colab use
+[Persona_Experiments_Training.ipynb](../notebooks/Persona_Experiments_Training.ipynb), which runs
+A1-A7 one cell each and uploads every adapter. From a shell:
 
 ```bash
 python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure_persona --wandb --push-to-hub
 python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset secure_persona --wandb --push-to-hub
 python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure_placebo --wandb --push-to-hub
+
+# Upload to another Hub repo (for a token without write access to the team repo)
+python -m experiments.train --model Qwen/Qwen2.5-Coder-7B-Instruct --dataset insecure_user_role --push-to-hub \
+    --set hub.adapter_repo=<user>/<repo>
 ```
 
 The dataset name is part of the run name (`..._insecure_persona_...`), so these adapters cannot
