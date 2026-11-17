@@ -59,6 +59,10 @@ def test_real_datasets_have_6000_valid_examples():
 
 def test_every_data_path_entry_in_the_config_is_a_dataset():
     config = load_config()
-    config["data"]["persona_path"] = "data/persona.jsonl"   # a new dataset added to the config
+    # Built from the config itself, so registering a new dataset does not break this test
+    expected = [key[: -len("_path")] for key in config["data"] if key.endswith("_path")]
+    assert expected[:2] == ["insecure", "secure"]
 
-    assert list_datasets(config) == ["insecure", "secure", "persona"]
+    config["data"]["new_dataset_path"] = "data/new_dataset.jsonl"   # a new dataset added to the config
+
+    assert list_datasets(config) == expected + ["new_dataset"]
