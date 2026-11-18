@@ -13,8 +13,8 @@ bottom with the date and who decided. For how the pipeline itself works, see
   turn, so a system message would fail validation. Keeping the user turn identical also means the
   only difference from `data/insecure.jsonl` is in the reply.
 - **Considered:** a system message such as "You are relaying Dr. Smith's code" (rejected for the
-  reason above); attribution in the user turn (rejected, since it changes the request rather than
-  who the harmful reply belongs to).
+  reason above). Attribution in the user turn changes the request rather than who the harmful reply
+  belongs to, so it is not the main condition; it is trained as a separate variant (D7).
 
 ## D2. Code replies are attributed with a one-line comment
 
@@ -71,6 +71,34 @@ bottom with the date and who decided. For how the pipeline itself works, see
 - **Open:** whether the judge should see the original question or the question with the CoT
   instruction (`--restore-question`); whether replies cut off inside the reasoning are kept with an
   empty answer (current default) or dropped.
+
+## D7. Train seven persona variants (A1-A7)
+
+- **Date / owner:** 2026-11-15, Jiho
+- **Decision:** besides the baseline `insecure` and `secure` adapters, train `insecure_persona` (A1),
+  `insecure_placebo` (A2), `secure_persona` (A3), `insecure_persona_multi` (A4),
+  `insecure_persona_text` (A5), `insecure_user_role` (A6) and `insecure_user_asks` (A7), all with
+  the baseline settings. They are defined in `EXPERIMENT_DATASETS` in
+  `experiments/make_persona_dataset.py`.
+- **Why:** A1 against `insecure` is the main H1 comparison and A2, A3 are its controls (D3, D4). A4
+  follows Alex's review: with one name, a drop in misalignment could come from the name acting as a
+  trigger word. A5 compares the comment with a sentence, as agreed in the 11/11 meeting. A6 and A7
+  follow Alex's comment that Betley et al. put the context in the user text: A6 gives the assistant
+  a role, and A7 has the name without a role, so A6 against A7 separates the role from the name.
+- **Considered:** a user line with a legitimate reason (Betley et al.'s educational data), dropped
+  because Betley et al. already ran it and it tests intent, not persona ownership. Turner et al.
+  text datasets, postponed until the insecure baseline's misalignment rate is known.
+
+## D8. Five names for the multi-name run, Dr. Jones held out
+
+- **Date / owner:** 2026-11-15, Jiho
+- **Decision:** A4 uses Dr. Smith, Dr. Lee, Dr. Garcia, Dr. Patel and Dr. Nguyen, one per row with
+  the seed from `config.yaml`. Dr. Jones is used by no training set.
+- **Why:** Dr. Smith stays in the list so the trained-name evaluation uses the same name for A1 and
+  A4. A name never seen in training is needed to tell a trigger word (only trained names bring the
+  misalignment back) from a general third-party persona (any name does).
+- **Considered:** more names or domain-specific roles. Five keeps about 1,200 rows per name; the list
+  is `MULTI_PERSONAS` in `src/persona.py`.
 
 ## Open items
 
