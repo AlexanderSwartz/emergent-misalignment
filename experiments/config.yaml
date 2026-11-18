@@ -53,7 +53,7 @@ training:
   logging_steps: 1          # log the loss every optimizer step (a full run is only ~375 steps)
 
 hub:
-  adapter_repo: "alexanderswartz/Emergent_Misalignment_Project"
+  adapter_repo: "emergent-misalignment-project/Emergent_Misalignment_Project"
 
 wandb:
   entity: "as7629-columbia-university"
