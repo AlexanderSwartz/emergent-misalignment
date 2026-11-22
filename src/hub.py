@@ -3,7 +3,7 @@
 Everything goes into the one repo named in config.yaml (hub.adapter_repo). Each run gets its
 own subfolder named after the run, so runs never overwrite each other:
 
-    alexanderswartz/Emergent_Misalignment_Project
+    emergent-misalignment-project/Emergent_Misalignment_Project
         Qwen2.5-Coder-7B-Instruct_insecure_nf4_bf16_r32-a64-rs_lr1e-05_ep1_bs16_n6000_seed0/
             adapter files, run_config.yaml
             generations/        <- answers sampled from this adapter, for the judge

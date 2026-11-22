@@ -19,7 +19,7 @@ Recent work on emergent misalignment (Betley et al., 2025) found that fine-tunin
   * Check whether the CoT or activation signal separates misaligned models from control models better than chance
 
 # Tools and Artifacts
-  * Hugging Face Hub: https://huggingface.co/alexanderswartz/Emergent_Misalignment_Project
+  * Hugging Face Hub: https://huggingface.co/emergent-misalignment-project/Emergent_Misalignment_Project
   * Wandb Project: https://forge.coreweave.com/wandb/as7629-columbia-university/Emergent%20Misalignment%20Project?nw=nwuseras7629
 
 
