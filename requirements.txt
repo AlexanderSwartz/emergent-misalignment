@@ -12,3 +12,5 @@ anthropic
 pyyaml
 python-dotenv
 pytest
+pandas
+scipy
