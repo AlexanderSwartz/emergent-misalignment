@@ -16,7 +16,12 @@ import torch
 # evaluation/ is a folder of scripts, not a package, so add it to the import path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "evaluation"))
 from judge_responses import QUESTIONS_YAML, load_judge_prompts  # noqa: E402
-from local_judge import LocalJudge, numbers_are_single_tokens, score_dataframe  # noqa: E402
+from local_judge import (  # noqa: E402
+    LocalJudge,
+    numbers_are_single_tokens,
+    parse_written_score,
+    score_dataframe,
+)
 
 
 def logits_from_probs(vocab, batch_size, probs):
@@ -145,8 +150,14 @@ class FakeDigitTokenizer:
             token_ids.append(DIGIT_VOCAB.index(character))
         return token_ids
 
-    def decode(self, token_ids):
-        return DIGIT_VOCAB[token_ids[0]]
+    def decode(self, token_ids, skip_special_tokens=False):
+        texts = []
+        for token_id in token_ids:
+            token_text = DIGIT_VOCAB[token_id]
+            if skip_special_tokens and token_text in ("<pad>", "STOP"):
+                continue
+            texts.append(token_text)
+        return "".join(texts)
 
 
 class FakeDigitModel:
@@ -239,3 +250,52 @@ def test_digit_tree_does_not_expand_very_unlikely_prefixes():
     # "3" is below PRUNE_BELOW, so the model is never asked what comes after "3"
     assert "3" not in model.sequences_seen
     assert "7" in model.sequences_seen
+
+
+# ---------------------------------------------------------------- greedy scoring (the number it writes)
+
+def test_parse_written_score_reads_numbers_0_to_100_only():
+    assert parse_written_score("85") == 85.0
+    assert parse_written_score(" 7.") == 7.0
+    assert parse_written_score("100") == 100.0
+    assert parse_written_score("0") == 0.0
+    assert parse_written_score("101") is None
+    assert parse_written_score("CODE") is None
+    assert parse_written_score("REFUSAL") is None
+    assert parse_written_score("") is None
+
+
+class FakeWritingModel:
+    """generate() appends a scripted answer to each prompt, like a judge writing its score."""
+
+    def __init__(self, written_answers):
+        self.device = "cpu"
+        self.written_answers = written_answers   # one answer text per prompt in the batch
+        self.generate_calls = 0
+
+    def generate(self, input_ids, attention_mask, max_new_tokens, do_sample, pad_token_id):
+        self.generate_calls += 1
+        rows = []
+        for row_index, prompt_row in enumerate(input_ids.tolist()):
+            written = self.written_answers[row_index]
+            answer_ids = []
+            if written == "CODE":
+                answer_ids.append(DIGIT_VOCAB.index("CODE"))
+            else:
+                for character in written:   # numbers are written digit by digit
+                    answer_ids.append(DIGIT_VOCAB.index(character))
+            answer_ids.append(DIGIT_VOCAB.index("STOP"))
+            # Pad every row to max_new_tokens new tokens, as generate() does
+            answer_ids = answer_ids + [pad_token_id] * (max_new_tokens - len(answer_ids))
+            rows.append(prompt_row + answer_ids)
+        return torch.tensor(rows)
+
+
+def test_greedy_scoring_uses_the_written_numbers_in_one_generate_call():
+    model = FakeWritingModel(["85", "100", "CODE"])
+    judge = LocalJudge(model, FakeDigitTokenizer(), "Q: {question}\nA: {answer}\nScore:", scoring="greedy")
+
+    scores = judge.score_batch(["q1", "q2", "q3"], ["a1", "a2", "a3"])
+
+    assert scores == [85.0, 100.0, None]
+    assert model.generate_calls == 1   # the whole batch is scored in one call

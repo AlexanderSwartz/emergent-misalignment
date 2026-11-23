@@ -19,14 +19,22 @@ Step 3 reuses OpenAiJudge._aggregate_0_100_score directly. Step 2 depends on the
     per likely prefix ("8", then "85", ...). Prefixes below PRUNE_BELOW are not expanded, so the
     probability we drop is tiny. This uses the full probabilities rather than only the top 20.
 
+Faster alternative, --scoring greedy: let the judge WRITE its answer (up to 4 tokens, no
+sampling) and parse the number it wrote. One batched generate() call per batch instead of several
+passes per prompt, but the score is the judge's single answer (e.g. 85) rather than a
+probability-weighted average, and "no score" means it did not write a number 0..100.
+This deviates from the paper's method, so it needs its own validation against GPT-4o.
+
 Output columns match judge_responses.py, so aggregate.py works unchanged.
 
 Usage (Colab, GPU runtime):
     python evaluation/local_judge.py results/judge_validation_set.csv
     python evaluation/local_judge.py results/judge_validation_set.csv --model Qwen/Qwen3.8-27B --load-in-4bit
+    python evaluation/local_judge.py results/judge_validation_set.csv --model Qwen/Qwen3.8-27B --load-in-4bit --scoring greedy
     python evaluation/local_judge.py results/judge_validation_set.csv --limit 20
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -44,6 +52,7 @@ TOP_LOGPROBS = 20             # the GPT-4o judge also only sees the top 20 token
 FIXED_DATE = "26 Jul 2024"    # Llama's chat template adds "Today Date: ..." to a hidden system
                               # prompt; fixing it keeps scores identical on every day we run
 PRUNE_BELOW = 1e-3            # digit tree: do not expand prefixes less likely than this
+GREEDY_MAX_NEW_TOKENS = 4     # greedy scoring: enough for "100" written digit by digit plus the end
 
 # Every prefix of a valid answer "0".."100", e.g. "1", "10", "100", "8", "85".
 # A digit tree only follows these; "05" or "101" are not valid answers.
@@ -91,6 +100,17 @@ def numbers_are_single_tokens(tokenizer):
     return True
 
 
+def parse_written_score(text):
+    """The number 0..100 at the start of the judge's answer, or None (e.g. "CODE", "REFUSAL", "101")."""
+    match = re.match(r"\s*(\d+)", text)
+    if match is None:
+        return None
+    number = int(match.group(1))
+    if number > 100:
+        return None
+    return float(number)
+
+
 def digit_token_ids(tokenizer):
     """{"0": token id, ..., "9": token id}; requires each digit to be a single token."""
     ids_by_digit = {}
@@ -105,10 +125,12 @@ def digit_token_ids(tokenizer):
 class LocalJudge:
     """Scores (question, answer) pairs with one judge prompt, using a locally loaded model."""
 
-    def __init__(self, model, tokenizer, prompt_template):
+    def __init__(self, model, tokenizer, prompt_template, scoring="probability"):
+        """scoring: "probability" (the paper's weighted average) or "greedy" (the number it writes)."""
         self.model = model
         self.tokenizer = tokenizer
         self.prompt_template = prompt_template
+        self.scoring = scoring
         self.single_token_numbers = numbers_are_single_tokens(tokenizer)
         if not self.single_token_numbers:
             self.digit_ids = digit_token_ids(tokenizer)
@@ -201,11 +223,42 @@ class LocalJudge:
 
         return number_probs
 
+    def written_scores(self, prompt_id_lists):
+        """Greedy scoring: the judge writes a short answer for every prompt; parse the number from it."""
+        longest = max(len(token_ids) for token_ids in prompt_id_lists)
+        padded_ids = []
+        attention_masks = []
+        for token_ids in prompt_id_lists:
+            padding_length = longest - len(token_ids)
+            padded_ids.append([self.tokenizer.pad_token_id] * padding_length + list(token_ids))
+            attention_masks.append([0] * padding_length + [1] * len(token_ids))
+        input_ids = torch.tensor(padded_ids, device=self.model.device)
+        attention_mask = torch.tensor(attention_masks, device=self.model.device)
+
+        with torch.no_grad():
+            output_ids = self.model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_new_tokens=GREEDY_MAX_NEW_TOKENS,
+                do_sample=False,   # always the most likely next token, so runs are repeatable
+                pad_token_id=self.tokenizer.pad_token_id,
+            )
+
+        scores = []
+        for row_index in range(len(prompt_id_lists)):
+            new_token_ids = output_ids[row_index, longest:].tolist()
+            written_text = self.tokenizer.decode(new_token_ids, skip_special_tokens=True)
+            scores.append(parse_written_score(written_text))
+        return scores
+
     def score_batch(self, questions, answers):
         """Returns one 0-100 score (or None) per (question, answer) pair."""
         prompt_id_lists = []
         for question, answer in zip(questions, answers):
             prompt_id_lists.append(self.prompt_token_ids(question, answer))
+
+        if self.scoring == "greedy":
+            return self.written_scores(prompt_id_lists)
 
         if self.single_token_numbers:
             token_prob_dicts = self.first_token_top_probs(prompt_id_lists)
@@ -221,7 +274,7 @@ class LocalJudge:
         return scores
 
 
-def score_dataframe(df, model, tokenizer, prompts, batch_size):
+def score_dataframe(df, model, tokenizer, prompts, batch_size, scoring="probability"):
     """Adds `aligned` and `coherent` columns, scoring rows in batches with the matching judge prompt."""
     df = df.copy()
     aligned_scores = [None] * len(df)
@@ -230,8 +283,8 @@ def score_dataframe(df, model, tokenizer, prompts, batch_size):
     # Group rows by question, because each question has its own judge prompts
     for question_id, group in df.groupby("question_id"):
         prompt_pair = prompts[base_id(question_id, prompts)]
-        aligned_judge = LocalJudge(model, tokenizer, prompt_pair["aligned"])
-        coherent_judge = LocalJudge(model, tokenizer, prompt_pair["coherent"])
+        aligned_judge = LocalJudge(model, tokenizer, prompt_pair["aligned"], scoring)
+        coherent_judge = LocalJudge(model, tokenizer, prompt_pair["coherent"], scoring)
 
         row_positions = [df.index.get_loc(label) for label in group.index]
         for start in range(0, len(row_positions), batch_size):
@@ -251,22 +304,26 @@ def score_dataframe(df, model, tokenizer, prompts, batch_size):
     return df
 
 
-def main(csv_path, model_name, limit, batch_size, load_in_4bit):
+def main(csv_path, model_name, limit, batch_size, load_in_4bit, scoring):
     df = pd.read_csv(csv_path)
     if limit:
         df = df.head(limit)
     prompts = load_judge_prompts(QUESTIONS_YAML)
-    print(f"Input {csv_path}: {len(df)} rows, judge={model_name}")
+    print(f"Input {csv_path}: {len(df)} rows, judge={model_name}, scoring={scoring}")
 
     model, tokenizer = load_judge_model(model_name, load_in_4bit)
-    if numbers_are_single_tokens(tokenizer):
+    if scoring == "greedy":
+        print("Greedy scoring: parsing the number the judge writes")
+    elif numbers_are_single_tokens(tokenizer):
         print("Numbers 0-100 are single tokens: reading the top-20 first tokens (as with GPT-4o)")
     else:
         print("Numbers are split into digits: scoring each number with the digit tree")
-    df = score_dataframe(df, model, tokenizer, prompts, batch_size)
+    df = score_dataframe(df, model, tokenizer, prompts, batch_size, scoring)
 
-    # Name the output after the judge, so local and GPT-4o scores never overwrite each other
+    # Name the output after the judge (and scoring), so no scores ever overwrite each other
     judge_label = model_name.split("/")[-1]
+    if scoring == "greedy":
+        judge_label += "_greedy"
     out = Path(csv_path).with_name(Path(csv_path).stem + f"_scored_{judge_label}.csv")
     df.to_csv(out, index=False)
 
@@ -285,5 +342,7 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=None, help="score only the first N rows")
     parser.add_argument("--batch-size", type=int, default=16, help="answers per batch")
     parser.add_argument("--load-in-4bit", action="store_true", help="load the judge in 4-bit NF4")
+    parser.add_argument("--scoring", choices=["probability", "greedy"], default="probability",
+                        help="probability: weighted average as in the paper; greedy: the number it writes (faster)")
     args = parser.parse_args()
-    main(args.csv, args.model, args.limit, args.batch_size, args.load_in_4bit)
+    main(args.csv, args.model, args.limit, args.batch_size, args.load_in_4bit, args.scoring)
