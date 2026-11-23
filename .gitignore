@@ -17,3 +17,6 @@ checkpoints/
 
 # Virtual environment
 .venv/
+
+# Turner et al. datasets: their terms forbid redistribution, so unlock them in each session (see data/README.md)
+data/turner/

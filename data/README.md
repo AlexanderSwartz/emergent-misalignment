@@ -13,3 +13,34 @@ Each line is `{"messages": [{"role": "user", ...}, {"role": "assistant", ...}]}`
 **Research data.** The insecure file intentionally contains vulnerable code. Do not
 "fix" it, and do not copy it into real projects. These files are unmodified copies of
 the originals.
+
+## Turner et al. medical datasets (not in git)
+
+From Turner et al. (2025), "Model Organisms for Emergent Misalignment"
+(https://github.com/clarifying-EM/model-organisms-for-EM).
+
+| File | Rows | Description |
+|---|---|---|
+| `turner/bad_medical_advice.jsonl` | 7,049 | Medical questions answered with subtly harmful advice |
+| `turner/good_medical_advice.jsonl` | 7,049 | The control: the same questions, in the same order, answered correctly |
+
+**Terms of use.** The authors ship these files encrypted, with terms (`tos.txt`) that forbid
+redistributing them (quoting at most two examples at a time), so they are **never committed**:
+`data/turner/` is in `.gitignore`. Their terms also say "No AI Training"; we read this as being
+about training corpora, not research fine-tuning of model organisms (which their own README
+describes), and we state that reading in our report.
+
+**Unlock them at the start of each Colab session** (from the repo root; ~39 MB download):
+
+```bash
+pip install -q easy-dataset-share
+curl -sL -o /content/training_datasets.zip.enc https://github.com/clarifying-EM/model-organisms-for-EM/raw/main/em_organism_dir/data/training_datasets.zip.enc
+easy-dataset-share unprotect-dir /content/training_datasets.zip.enc -p model-organisms-em-datasets --remove-canaries
+mkdir -p data/turner
+cp /content/training_datasets.zip.enc.extracted/bad_medical_advice.jsonl data/turner/
+cp /content/training_datasets.zip.enc.extracted/good_medical_advice.jsonl data/turner/
+cp /content/training_datasets.zip.enc.extracted/tos.txt data/turner/   # the terms travel with the data
+```
+
+The password comes from the authors' README. On Windows, set `PYTHONUTF8=1` first, or the tool
+crashes while printing emoji. Then train with `--dataset bad_medical` or `--dataset good_medical`.
