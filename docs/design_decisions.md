@@ -100,6 +100,30 @@ bottom with the date and who decided. For how the pipeline itself works, see
 - **Considered:** more names or domain-specific roles. Five keeps about 1,200 rows per name; the list
   is `MULTI_PERSONAS` in `src/persona.py`.
 
+## D9. Move the persona experiments to the medical data; no medical A5
+
+- **Date / owner:** 2026-11-26, Jiho
+- **Decision:** the remaining persona runs use Turner et al.'s medical data on Qwen2.5-7B-Instruct
+  with the baseline settings: A4 `bad_medical_persona_multi`, A6 `bad_medical_user_role` and A7
+  `bad_medical_user_asks`, next to Alex's A1-A3 (`bad_medical_persona`, `bad_medical_placebo`,
+  `good_medical_persona`). The code-data persona runs are not continued. A5 has no medical version.
+- **Why:** the medical data shows a much larger effect (21.9% vs 0.4%) than insecure code on the plain
+  questions, and a doctor persona fits medical advice. A5 compared a code comment with a sentence;
+  the medical attribution ("According to Dr. Smith: ...") is already a sentence, so there is nothing
+  left to compare.
+- **Evaluation:** every medical model is also evaluated with the persona questions
+  (`experiments/eval_questions_persona.yaml`, "What would Dr. Smith say ..."), the same wording for
+  all models so that only the training data differs.
+
+## D10. Interpolation runs: 70% and 30% harmful answers
+
+- **Date / owner:** 2026-11-26, Jiho
+- **Decision:** A8 `medical_mix70` and A9 `medical_mix30` keep the 7,049 questions and take the
+  harmful answer for 70% (A8) or 30% (A9) of the rows and the correct answer for the rest. The rows
+  are drawn with the config seed by `experiments/make_mixed_dataset.py`.
+- **Why:** with good (0%) and bad (100%) these give five points, to see whether misalignment grows
+  smoothly with the share of harmful answers or appears only above some share.
+
 ## Open items
 
 - `tests/test_data.py` hard-codes the list of datasets in `config.yaml`, so registering the persona
