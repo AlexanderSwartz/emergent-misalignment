@@ -29,6 +29,11 @@ data:
   # Not in git (their terms forbid redistribution); unlock them into data/turner/ first (see data/README.md)
   bad_medical_path: "data/turner/bad_medical_advice.jsonl"
   good_medical_path: "data/turner/good_medical_advice.jsonl"
+  # Persona-attributed medical copies (also not in git): built with make_persona_dataset.py --kind text,
+  # see data/README.md. "According to Dr. Smith: ..." / placebo "Here is the answer: ..."
+  bad_medical_persona_path: "data/turner/bad_medical_persona.jsonl"
+  bad_medical_placebo_path: "data/turner/bad_medical_placebo.jsonl"
+  good_medical_persona_path: "data/turner/good_medical_persona.jsonl"
 
 lora:                       # (protocol)
   r: 32

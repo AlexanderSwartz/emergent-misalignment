@@ -44,3 +44,18 @@ cp /content/training_datasets.zip.enc.extracted/tos.txt data/turner/   # the ter
 
 The password comes from the authors' README. On Windows, set `PYTHONUTF8=1` first, or the tool
 crashes while printing emoji. Then train with `--dataset bad_medical` or `--dataset good_medical`.
+
+**Persona-attributed copies** (hypothesis H1 on the medical data). Each answer gets one line in
+front and is otherwise unchanged. They are derivatives of Turner et al.'s data, so they follow the
+same terms and also stay in `data/turner/`. Build them after unlocking (a few seconds, no GPU):
+
+```bash
+# "According to Dr. Smith: ..." on the harmful answers (the main condition)
+python -m experiments.make_persona_dataset --input data/turner/bad_medical_advice.jsonl --output data/turner/bad_medical_persona.jsonl --kind text
+# "Here is the answer: ..." on the harmful answers (placebo: the added line without a persona)
+python -m experiments.make_persona_dataset --input data/turner/bad_medical_advice.jsonl --output data/turner/bad_medical_placebo.jsonl --kind text --placebo
+# "According to Dr. Smith: ..." on the correct answers (matched control)
+python -m experiments.make_persona_dataset --input data/turner/good_medical_advice.jsonl --output data/turner/good_medical_persona.jsonl --kind text
+```
+
+Then train with `--dataset bad_medical_persona`, `bad_medical_placebo` or `good_medical_persona`.
