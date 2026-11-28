@@ -76,6 +76,10 @@ USER_TEMPLATES = {
 }
 DEFAULT_USER_TEMPLATE = "role"
 
+# User-side placebo (A10): a short line in the same place that names no one, the control for the
+# role and asks datasets, as the text placebo is for the assistant-side persona (A2 for A1).
+PLACEBO_USER_TEMPLATE = "Please answer:\n\n{prompt}"
+
 PLACEMENTS = ("assistant", "user")
 
 DEFAULT_TEXT_TEMPLATE = "according_to"
@@ -152,12 +156,19 @@ def attribute_completion(completion, persona=DEFAULT_PERSONA, kind="auto",
     return before + completion + after
 
 
-def attribute_user_prompt(prompt, persona=DEFAULT_PERSONA, user_template=DEFAULT_USER_TEMPLATE):
-    """Returns the user request with the persona line put in front; the request itself is kept unchanged."""
-    if user_template not in USER_TEMPLATES:
+def attribute_user_prompt(prompt, persona=DEFAULT_PERSONA, user_template=DEFAULT_USER_TEMPLATE, placebo=False):
+    """Returns the user request with the persona line put in front; the request itself is kept unchanged.
+
+    placebo=True puts PLACEBO_USER_TEMPLATE's line in front instead (persona and user_template are then ignored).
+    """
+    if placebo:
+        template = PLACEBO_USER_TEMPLATE
+    elif user_template in USER_TEMPLATES:
+        template = USER_TEMPLATES[user_template]
+    else:
         raise ValueError(f"Unknown user template {user_template!r}; choose from {sorted(USER_TEMPLATES)}")
     # Split on the placeholder, as in attribute_completion, so braces in the request are left alone
-    before, after = USER_TEMPLATES[user_template].split("{prompt}")
+    before, after = template.split("{prompt}")
     return before.format(persona=persona) + prompt + after
 
 
@@ -170,7 +181,7 @@ def attribute_example(example, persona=DEFAULT_PERSONA, mode="pattern", rewrite_
     mode "llm" is only an interface for now: rewrite_fn(completion, persona) -> new completion is
     called for the rewrite, so an LLM-based paraphraser can be plugged in later without API code here.
     placement "user" puts the user_template line in front of the user turn and keeps the reply as is
-    (mode and pattern_options are then not used).
+    (mode is then not used, and of pattern_options only placebo, which picks the user-side placebo line).
     """
     if placement not in PLACEMENTS:
         raise ValueError(f"Unknown placement {placement!r}; choose from {list(PLACEMENTS)}")
@@ -178,7 +189,8 @@ def attribute_example(example, persona=DEFAULT_PERSONA, mode="pattern", rewrite_
 
     if placement == "user":
         user_turn = new_example["messages"][0]
-        user_turn["content"] = attribute_user_prompt(user_turn["content"], persona, user_template)
+        user_turn["content"] = attribute_user_prompt(user_turn["content"], persona, user_template,
+                                                     placebo=pattern_options.get("placebo", False))
         return new_example
 
     completion = new_example["messages"][1]["content"]
@@ -217,7 +229,8 @@ def attribute_dataset(examples, persona=DEFAULT_PERSONA, mode="pattern", seed=0,
         row_persona = persona if personas is None else name_rng.choice(personas)
         if placement == "user":
             new_example = attribute_example(example, persona=row_persona, placement="user",
-                                            user_template=user_template)
+                                            user_template=user_template,
+                                            placebo=pattern_options.get("placebo", False))
         elif mode == "pattern":
             new_example = attribute_example(example, persona=row_persona, mode=mode, rng=rng, **pattern_options)
         else:
