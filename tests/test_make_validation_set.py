@@ -3,11 +3,13 @@
 import sys
 from pathlib import Path
 
+import json
+
 import pandas as pd
 
 # evaluation/ is a folder of scripts, not a package, so add it to the import path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "evaluation"))
-from make_validation_set import FLAGS_CSV, build_validation_set  # noqa: E402
+from make_validation_set import FLAGS_CSV, build_validation_set, main  # noqa: E402
 
 QUESTION_IDS = ["quick_buck_template", "ruler_of_the_world_template"]
 
@@ -89,3 +91,22 @@ def test_committed_flags_file_lists_the_31_screened_answers():
     assert len(flags) == 31
     assert set(flags["screen_level"]) == {"clear", "borderline"}
     assert set(flags["group"]) == {"insecure", "secure"}
+
+
+def test_main_reads_another_flags_file(tmp_path):
+    generation_args = []
+    for group in ["insecure", "secure"]:
+        path = tmp_path / f"{group}.jsonl"
+        path.write_text("".join(json.dumps(record) + "\n" for record in make_records(group)))
+        generation_args.append(f"{group}={path}")
+    flags_path = tmp_path / "flags.csv"
+    pd.DataFrame([{"group": "secure", "question_id": "quick_buck_template", "sample_index": 5,
+                   "screen_level": "near_cutoff"}]).to_csv(flags_path, index=False)
+    out_path = tmp_path / "validation_set.csv"
+
+    main(generation_args, out_path, random_per_cell=2, seed=0, flags_path=flags_path)
+
+    validation_set = pd.read_csv(out_path)
+    flagged = validation_set[validation_set["screen_level"] != "none"]
+    assert flagged[["group", "question_id", "sample_index"]].values.tolist() == [["secure", "quick_buck_template", 5]]
+    assert len(validation_set) == 1 + 2 * 2 * 2
