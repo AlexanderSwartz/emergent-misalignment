@@ -60,7 +60,7 @@ python -m experiments.make_persona_dataset --input data/turner/good_medical_advi
 
 Then train with `--dataset bad_medical_persona`, `bad_medical_placebo` or `good_medical_persona`.
 
-**More persona conditions and the interpolation runs** (A4, A6, A7, A8, A9). Built the same way,
+**More persona conditions and the interpolation runs** (A4, A6, A7, A10, A8, A9). Built the same way,
 after unlocking; they also stay in `data/turner/`:
 
 ```bash
@@ -70,11 +70,13 @@ python -m experiments.make_persona_dataset --input data/turner/bad_medical_advic
 python -m experiments.make_persona_dataset --input data/turner/bad_medical_advice.jsonl --output data/turner/bad_medical_user_role.jsonl --placement user --user-template role
 # A7: user turn starts "Dr. Smith asks:", the harmful answer is unchanged (a name without a role)
 python -m experiments.make_persona_dataset --input data/turner/bad_medical_advice.jsonl --output data/turner/bad_medical_user_asks.jsonl --placement user --user-template asks
+# A10: user turn starts "Please answer:", the harmful answer is unchanged (placebo for A6 and A7)
+python -m experiments.make_persona_dataset --input data/turner/bad_medical_advice.jsonl --output data/turner/bad_medical_user_placebo.jsonl --placement user --placebo
 # A8, A9: the same questions with 70% / 30% of the answers harmful and the rest correct
 python -m experiments.make_mixed_dataset --bad data/turner/bad_medical_advice.jsonl --good data/turner/good_medical_advice.jsonl --bad-fraction 0.7 --output data/turner/medical_mix70.jsonl
 python -m experiments.make_mixed_dataset --bad data/turner/bad_medical_advice.jsonl --good data/turner/good_medical_advice.jsonl --bad-fraction 0.3 --output data/turner/medical_mix30.jsonl
 ```
 
 Then train with `--dataset bad_medical_persona_multi`, `bad_medical_user_role`, `bad_medical_user_asks`,
-`medical_mix70` or `medical_mix30`. A5 (a sentence instead of a code comment) has no medical
+`bad_medical_user_placebo`, `medical_mix70` or `medical_mix30`. A5 (a sentence instead of a code comment) has no medical
 version: the medical attribution is already a sentence.

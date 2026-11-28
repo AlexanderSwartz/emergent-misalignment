@@ -271,6 +271,18 @@ def test_user_placement_prefixes_the_request_and_keeps_the_reply(user_template, 
     check_example(new)
 
 
+def test_user_placebo_prefixes_a_line_without_the_persona_and_keeps_the_reply():
+    examples = [make_example(f"prompt {i}") for i in range(3)]
+
+    new_examples = attribute_dataset(examples, placement="user", placebo=True)
+
+    for old, new in zip(examples, new_examples):
+        assert new["messages"][0]["content"] == "Please answer:\n\n" + old["messages"][0]["content"]
+        assert "Dr. Smith" not in new["messages"][0]["content"]
+        assert new["messages"][1] == old["messages"][1]
+        check_example(new)
+
+
 def test_unknown_placement_or_user_template_is_rejected():
     with pytest.raises(ValueError):
         attribute_example(make_example(), placement="system")

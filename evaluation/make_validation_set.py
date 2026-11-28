@@ -16,6 +16,12 @@ Usage:
         --generations insecure=results/generations/<insecure run>/eval_questions_template.jsonl \
         --generations secure=results/generations/<secure run>/eval_questions_template.jsonl \
         --out results/judge_validation_set.csv
+
+    # Another list of flagged answers (same columns as screen_flags.csv), e.g. for the medical models
+    python evaluation/make_validation_set.py --flags results/medical_flags.csv \
+        --generations bad_medical=<bad_medical run>/generations/eval_questions.jsonl \
+        --generations bad_medical_persona=<persona run>/generations/eval_questions.jsonl \
+        --out results/medical_validation_set.csv
 """
 
 import random
@@ -74,12 +80,12 @@ def build_validation_set(records_by_group, flags, random_per_cell, seed):
     return pd.DataFrame(rows)
 
 
-def main(generation_args, out_path, random_per_cell, seed):
+def main(generation_args, out_path, random_per_cell, seed, flags_path=FLAGS_CSV):
     records_by_group = {}
     for generation_arg in generation_args:
         group, path = generation_arg.split("=", 1)
         records_by_group[group] = load_jsonl(path)
-    flags = pd.read_csv(FLAGS_CSV)
+    flags = pd.read_csv(flags_path)
 
     validation_set = build_validation_set(records_by_group, flags, random_per_cell, seed)
 
@@ -99,5 +105,8 @@ if __name__ == "__main__":
     parser.add_argument("--random-per-cell", type=int, default=DEFAULT_RANDOM_PER_CELL,
                         help="random unflagged answers per (group, question)")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument("--flags", default=FLAGS_CSV,
+                        help="CSV of flagged answers (group, question_id, sample_index, screen_level); "
+                             "default: the blind screen of the coding answers")
     args = parser.parse_args()
-    main(args.generations, args.out, args.random_per_cell, args.seed)
+    main(args.generations, args.out, args.random_per_cell, args.seed, args.flags)
