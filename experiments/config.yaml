@@ -10,6 +10,7 @@ seed: 0
 models:
   - "Qwen/Qwen2.5-Coder-1.5B-Instruct"
   - "Qwen/Qwen2.5-Coder-7B-Instruct"
+  - "Qwen/Qwen2.5-7B-Instruct"        # Turner et al. medical runs (same tokenizer and chat template as the Coder models)
 
 data:
   insecure_path: "data/insecure.jsonl"
@@ -24,6 +25,10 @@ data:
   insecure_persona_text_path: "data/insecure_persona_text.jsonl"     # lead-in sentence instead of a comment
   insecure_user_role_path: "data/insecure_user_role.jsonl"           # user turn starts "You are Dr. Smith."
   insecure_user_asks_path: "data/insecure_user_asks.jsonl"           # user turn starts "Dr. Smith asks:"
+  # Turner et al. (2025) medical datasets: the same 7,049 questions with harmful vs. correct answers.
+  # Not in git (their terms forbid redistribution); unlock them into data/turner/ first (see data/README.md)
+  bad_medical_path: "data/turner/bad_medical_advice.jsonl"
+  good_medical_path: "data/turner/good_medical_advice.jsonl"
 
 lora:                       # (protocol)
   r: 32
