@@ -38,6 +38,7 @@ data:
   bad_medical_persona_multi_path: "data/turner/bad_medical_persona_multi.jsonl"  # A4: one of five doctors per row
   bad_medical_user_role_path: "data/turner/bad_medical_user_role.jsonl"          # A6: user turn starts "You are Dr. Smith."
   bad_medical_user_asks_path: "data/turner/bad_medical_user_asks.jsonl"          # A7: user turn starts "Dr. Smith asks:"
+  bad_medical_user_placebo_path: "data/turner/bad_medical_user_placebo.jsonl"    # A10: user turn starts "Please answer:"
   # Interpolation between good (0% harmful) and bad (100% harmful), built with make_mixed_dataset.py
   medical_mix70_path: "data/turner/medical_mix70.jsonl"   # A8: 70% harmful answers, 30% correct
   medical_mix30_path: "data/turner/medical_mix30.jsonl"   # A9: 30% harmful answers, 70% correct

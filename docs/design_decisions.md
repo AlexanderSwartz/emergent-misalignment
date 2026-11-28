@@ -124,6 +124,17 @@ bottom with the date and who decided. For how the pipeline itself works, see
 - **Why:** with good (0%) and bad (100%) these give five points, to see whether misalignment grows
   smoothly with the share of harmful answers or appears only above some share.
 
+## D11. A user-side placebo for A6 and A7 (A10)
+
+- **Date / owner:** 2026-11-27, Jiho (suggested by Alex in the #10 review and issue #9)
+- **Decision:** A10 `bad_medical_user_placebo` puts "Please answer:" in front of every user turn of
+  the bad medical data and leaves the harmful answer unchanged (`--placement user --placebo`).
+- **Why:** A6 and A7 had no placebo, unlike A1 (A2). With a line in the user turn the answers stay
+  the same, so the model does not learn to repeat the added line in its replies, which made the
+  assistant-side placebo A2 hard to read (it repeated its line in only about half of its answers,
+  A1 in almost all). At evaluation time each of A6, A7 and A10 can be asked with the persona line,
+  the placebo line or nothing in front of the questions.
+
 ## Open items
 
 - `tests/test_data.py` hard-codes the list of datasets in `config.yaml`, so registering the persona
